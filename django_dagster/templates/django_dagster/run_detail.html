@@ -3,25 +3,25 @@
 {% block content_title %}<h1>{{ title }}</h1>{% endblock %}
 
 {% block dagster_breadcrumbs %}
-&rsaquo; <a href="{% url 'dagster:run_list' %}">Runs</a>
+&rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_runs' %}">Runs</a>
 &rsaquo; {{ run.runId|truncatechars:12 }}
 {% endblock %}
 
 {% block dagster_content %}
 <div style="margin-bottom: 15px;" class="dagster-actions">
     {% if can_cancel %}
-    <form method="post" action="{% url 'dagster:cancel_run' run.runId %}" style="display: inline;">
+    <form method="post" action="{% url 'admin:django_dagster_dagsterjob_cancel_run' run.runId %}" style="display: inline;">
         {% csrf_token %}
         <button type="submit" class="button" onclick="return confirm('Cancel this run?')">Cancel Run</button>
     </form>
     {% endif %}
     {% if can_retry %}
-    <form method="post" action="{% url 'dagster:retry_run' run.runId %}" style="display: inline;">
+    <form method="post" action="{% url 'admin:django_dagster_dagsterjob_retry_run' run.runId %}" style="display: inline;">
         {% csrf_token %}
         <button type="submit" class="button">Retry Run</button>
     </form>
     {% endif %}
-    <a href="{% url 'dagster:run_list' %}?job={{ run.jobName }}" class="button">All Runs for {{ run.jobName }}</a>
+    <a href="{% url 'admin:django_dagster_dagsterjob_runs' %}?job={{ run.jobName }}" class="button">All Runs for {{ run.jobName }}</a>
 </div>
 
 <table class="dagster-detail-table">

@@ -35,7 +35,7 @@
             {% for run in runs %}
             <tr>
                 <td>
-                    <a href="{% url 'dagster:run_detail' run.runId %}">
+                    <a href="{% url 'admin:django_dagster_dagsterjob_run_detail' run.runId %}">
                         {{ run.runId|truncatechars:12 }}
                     </a>
                 </td>
@@ -44,7 +44,7 @@
                 <td>{{ run.startTime|default:"—" }}</td>
                 <td>{{ run.endTime|default:"—" }}</td>
                 <td class="dagster-actions">
-                    <a href="{% url 'dagster:run_detail' run.runId %}">View</a>
+                    <a href="{% url 'admin:django_dagster_dagsterjob_run_detail' run.runId %}">View</a>
                 </td>
             </tr>
             {% endfor %}

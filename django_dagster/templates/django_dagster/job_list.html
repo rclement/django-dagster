@@ -25,8 +25,8 @@
                 <td>{{ job.repository }}</td>
                 <td>{{ job.location }}</td>
                 <td class="dagster-actions">
-                    <a href="{% url 'dagster:trigger_job' %}?job={{ job.name }}" class="button">Trigger</a>
-                    <a href="{% url 'dagster:run_list' %}?job={{ job.name }}">Runs</a>
+                    <a href="{% url 'admin:django_dagster_dagsterjob_trigger' %}?job={{ job.name }}" class="button">Trigger</a>
+                    <a href="{% url 'admin:django_dagster_dagsterjob_runs' %}?job={{ job.name }}">Runs</a>
                 </td>
             </tr>
             {% endfor %}
