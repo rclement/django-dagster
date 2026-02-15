@@ -6,6 +6,7 @@ requires-python = ">=3.13"
 dependencies = [
     "django>=5.1",
     "django-dagster",
+    "dagster-webserver",
 ]
 
 [tool.uv.sources]

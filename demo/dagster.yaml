@@ -1,0 +1,13 @@
+# Dagster instance configuration for the demo.
+# This uses local storage defaults — no external services required.
+
+storage:
+  sqlite:
+    base_dir: .dagster_storage
+
+run_launcher:
+  module: dagster.core.launcher
+  class: DefaultRunLauncher
+
+telemetry:
+  enabled: false
