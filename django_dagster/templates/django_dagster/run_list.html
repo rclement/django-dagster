@@ -2,7 +2,9 @@
 
 {% block content_title %}<h1>{{ title }}</h1>{% endblock %}
 
-{% block dagster_breadcrumbs %}&rsaquo; Runs{% endblock %}
+{% block dagster_breadcrumbs %}
+&rsaquo; <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}">Runs</a>
+{% endblock %}
 
 {% block dagster_content %}
 <form method="get" style="margin-bottom: 15px;">
@@ -28,14 +30,13 @@
                 <th>Status</th>
                 <th>Started</th>
                 <th>Ended</th>
-                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for run in runs %}
             <tr>
                 <td>
-                    <a href="{% url 'admin:django_dagster_dagsterjob_run_detail' run.runId %}">
+                    <a href="{% url 'admin:django_dagster_dagsterrun_change' run.runId %}">
                         {{ run.runId|truncatechars:12 }}
                     </a>
                 </td>
@@ -43,9 +44,6 @@
                 <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
                 <td>{{ run.startTime|default:"—" }}</td>
                 <td>{{ run.endTime|default:"—" }}</td>
-                <td class="dagster-actions">
-                    <a href="{% url 'admin:django_dagster_dagsterjob_run_detail' run.runId %}">View</a>
-                </td>
             </tr>
             {% endfor %}
         </tbody>
