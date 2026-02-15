@@ -1,0 +1,14 @@
+[project]
+name = "django-dagster"
+version = "0.1.0"
+description = "Django plugin for interacting with a Dagster server"
+requires-python = ">=3.13"
+license = "MIT"
+dependencies = [
+    "django>=4.2",
+    "dagster-graphql",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

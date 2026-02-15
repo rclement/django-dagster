@@ -1,0 +1,39 @@
+{% extends "django_dagster/base.html" %}
+
+{% block content_title %}<h1>{{ title }}</h1>{% endblock %}
+
+{% block dagster_breadcrumbs %}&rsaquo; Jobs{% endblock %}
+
+{% block dagster_content %}
+{% if jobs is not None %}
+    {% if jobs %}
+    <table class="dagster-table">
+        <thead>
+            <tr>
+                <th>Job Name</th>
+                <th>Description</th>
+                <th>Repository</th>
+                <th>Location</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td><strong>{{ job.name }}</strong></td>
+                <td>{{ job.description|default:"—" }}</td>
+                <td>{{ job.repository }}</td>
+                <td>{{ job.location }}</td>
+                <td class="dagster-actions">
+                    <a href="{% url 'dagster:trigger_job' %}?job={{ job.name }}" class="button">Trigger</a>
+                    <a href="{% url 'dagster:run_list' %}?job={{ job.name }}">Runs</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No jobs found. Make sure your Dagster instance has code locations loaded.</p>
+    {% endif %}
+{% endif %}
+{% endblock %}

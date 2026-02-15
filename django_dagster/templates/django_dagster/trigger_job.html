@@ -1,0 +1,40 @@
+{% extends "django_dagster/base.html" %}
+
+{% block content_title %}<h1>{{ title }}</h1>{% endblock %}
+
+{% block dagster_breadcrumbs %}&rsaquo; Trigger Job{% endblock %}
+
+{% block dagster_content %}
+<form method="post">
+    {% csrf_token %}
+
+    <div class="form-row">
+        <label for="id_job_name">Job name:</label>
+        {% if jobs %}
+        <select id="id_job_name" name="job_name" required>
+            <option value="">---------</option>
+            {% for job in jobs %}
+            <option value="{{ job.name }}" {% if job.name == job_name %}selected{% endif %}>
+                {{ job.name }} ({{ job.repository }})
+            </option>
+            {% endfor %}
+        </select>
+        {% else %}
+        <input type="text" id="id_job_name" name="job_name" value="{{ job_name|default:'' }}" required
+               style="width: 300px;" placeholder="my_job_name">
+        <p class="help">Could not fetch job list from Dagster. Enter the job name manually.</p>
+        {% endif %}
+    </div>
+
+    <div class="form-row" style="margin-top: 15px;">
+        <label for="id_run_config">Run config (JSON, optional):</label>
+        <textarea id="id_run_config" name="run_config" rows="10"
+                  style="width: 100%; font-family: monospace; font-size: 13px;"
+                  placeholder='{"ops": {"my_op": {"config": {"param": "value"}}}}'>{{ run_config|default:'' }}</textarea>
+    </div>
+
+    <div class="submit-row" style="margin-top: 15px;">
+        <input type="submit" value="Trigger Job" class="default">
+    </div>
+</form>
+{% endblock %}

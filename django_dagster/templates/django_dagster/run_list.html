@@ -1,0 +1,57 @@
+{% extends "django_dagster/base.html" %}
+
+{% block content_title %}<h1>{{ title }}</h1>{% endblock %}
+
+{% block dagster_breadcrumbs %}&rsaquo; Runs{% endblock %}
+
+{% block dagster_content %}
+<form method="get" style="margin-bottom: 15px;">
+    <label for="id_job">Job:</label>
+    <input type="text" id="id_job" name="job" value="{{ current_job|default:'' }}" placeholder="All jobs">
+    <label for="id_status" style="margin-left: 10px;">Status:</label>
+    <select id="id_status" name="status">
+        <option value="">All</option>
+        {% for s in statuses %}
+        <option value="{{ s }}" {% if s == current_status %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+    </select>
+    <input type="submit" value="Filter" class="button">
+</form>
+
+{% if runs is not None %}
+    {% if runs %}
+    <table class="dagster-table">
+        <thead>
+            <tr>
+                <th>Run ID</th>
+                <th>Job</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th>Ended</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for run in runs %}
+            <tr>
+                <td>
+                    <a href="{% url 'dagster:run_detail' run.runId %}">
+                        {{ run.runId|truncatechars:12 }}
+                    </a>
+                </td>
+                <td>{{ run.jobName }}</td>
+                <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
+                <td>{{ run.startTime|default:"—" }}</td>
+                <td>{{ run.endTime|default:"—" }}</td>
+                <td class="dagster-actions">
+                    <a href="{% url 'dagster:run_detail' run.runId %}">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No runs found{% if current_job %} for job "{{ current_job }}"{% endif %}{% if current_status %} with status "{{ current_status }}"{% endif %}.</p>
+    {% endif %}
+{% endif %}
+{% endblock %}
