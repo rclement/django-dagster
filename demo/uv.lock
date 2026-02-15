@@ -262,7 +262,7 @@ wheels = [
 [[package]]
 name = "django-dagster"
 version = "0.1.0"
-source = { directory = "../" }
+source = { editable = "../" }
 dependencies = [
     { name = "dagster-graphql" },
     { name = "django" },
@@ -294,7 +294,7 @@ dependencies = [
 requires-dist = [
     { name = "dagster-webserver" },
     { name = "django", specifier = ">=5.1" },
-    { name = "django-dagster", directory = "../" },
+    { name = "django-dagster", editable = "../" },
 ]
 
 [[package]]
