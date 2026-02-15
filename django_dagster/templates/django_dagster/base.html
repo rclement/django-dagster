@@ -6,7 +6,8 @@
 {% block breadcrumbs %}
 <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
-    &rsaquo; <a href="{% url 'dagster:job_list' %}">{% trans 'Dagster' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' 'django_dagster' %}">{% trans 'Dagster' %}</a>
+    &rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_changelist' %}">{% trans 'Jobs' %}</a>
     {% block dagster_breadcrumbs %}{% endblock %}
 </div>
 {% endblock %}
@@ -98,16 +99,16 @@
 {% block content %}
 <div id="content-main">
     <div class="dagster-nav">
-        <a href="{% url 'dagster:job_list' %}"
-           {% if request.resolver_match.url_name == 'job_list' %}class="active"{% endif %}>
+        <a href="{% url 'admin:django_dagster_dagsterjob_changelist' %}"
+           {% if request.resolver_match.url_name == 'django_dagster_dagsterjob_changelist' %}class="active"{% endif %}>
             Jobs
         </a>
-        <a href="{% url 'dagster:run_list' %}"
-           {% if request.resolver_match.url_name == 'run_list' %}class="active"{% endif %}>
+        <a href="{% url 'admin:django_dagster_dagsterjob_runs' %}"
+           {% if request.resolver_match.url_name == 'django_dagster_dagsterjob_runs' %}class="active"{% endif %}>
             Runs
         </a>
-        <a href="{% url 'dagster:trigger_job' %}"
-           {% if request.resolver_match.url_name == 'trigger_job' %}class="active"{% endif %}>
+        <a href="{% url 'admin:django_dagster_dagsterjob_trigger' %}"
+           {% if request.resolver_match.url_name == 'django_dagster_dagsterjob_trigger' %}class="active"{% endif %}>
             Trigger Job
         </a>
     </div>

@@ -1,0 +1,279 @@
+import json
+
+from django.contrib import admin, messages
+from django.http import HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
+
+from . import client
+from .models import DagsterJob
+
+
+@admin.register(DagsterJob)
+class DagsterJobAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_staff
+
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_staff
+
+    def get_urls(self):
+        info = (self.model._meta.app_label, self.model._meta.model_name)
+        urls = [
+            path(
+                "",
+                self.admin_site.admin_view(self.job_list_view),
+                name="%s_%s_changelist" % info,
+            ),
+            path(
+                "trigger/",
+                self.admin_site.admin_view(self.trigger_view),
+                name="%s_%s_trigger" % info,
+            ),
+            path(
+                "runs/",
+                self.admin_site.admin_view(self.run_list_view),
+                name="%s_%s_runs" % info,
+            ),
+            path(
+                "runs/<str:run_id>/",
+                self.admin_site.admin_view(self.run_detail_view),
+                name="%s_%s_run_detail" % info,
+            ),
+            path(
+                "runs/<str:run_id>/cancel/",
+                self.admin_site.admin_view(self.cancel_run_view),
+                name="%s_%s_cancel_run" % info,
+            ),
+            path(
+                "runs/<str:run_id>/retry/",
+                self.admin_site.admin_view(self.retry_run_view),
+                name="%s_%s_retry_run" % info,
+            ),
+        ]
+        return urls
+
+    def _build_context(self, request, extra=None):
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+        if extra:
+            context.update(extra)
+        return context
+
+    # -- Job list (changelist) -----------------------------------------------
+
+    def job_list_view(self, request):
+        jobs = None
+        try:
+            jobs = client.get_jobs()
+        except Exception as e:
+            self.message_user(
+                request, f"Failed to connect to Dagster: {e}", messages.ERROR
+            )
+
+        context = self._build_context(request, {
+            "title": "Dagster Jobs",
+            "jobs": jobs,
+        })
+        return TemplateResponse(
+            request, "django_dagster/job_list.html", context
+        )
+
+    # -- Run list ------------------------------------------------------------
+
+    def run_list_view(self, request):
+        job_name = request.GET.get("job")
+        status = request.GET.get("status")
+        statuses = [status] if status else None
+
+        runs = None
+        try:
+            runs = client.get_runs(job_name=job_name, statuses=statuses)
+        except Exception as e:
+            self.message_user(
+                request, f"Failed to connect to Dagster: {e}", messages.ERROR
+            )
+
+        context = self._build_context(request, {
+            "title": "Dagster Runs",
+            "runs": runs,
+            "current_job": job_name,
+            "current_status": status,
+            "statuses": [
+                "QUEUED",
+                "NOT_STARTED",
+                "STARTING",
+                "STARTED",
+                "SUCCESS",
+                "FAILURE",
+                "CANCELING",
+                "CANCELED",
+            ],
+        })
+        return TemplateResponse(
+            request, "django_dagster/run_list.html", context
+        )
+
+    # -- Run detail ----------------------------------------------------------
+
+    def run_detail_view(self, request, run_id):
+        run = None
+        try:
+            run = client.get_run(run_id)
+        except Exception as e:
+            self.message_user(
+                request, f"Failed to fetch run: {e}", messages.ERROR
+            )
+
+        if run is None:
+            self.message_user(
+                request, f"Run {run_id} not found", messages.ERROR
+            )
+            return HttpResponseRedirect(
+                reverse("admin:django_dagster_dagsterjob_runs")
+            )
+
+        can_cancel = run["status"] in (
+            "QUEUED", "NOT_STARTED", "STARTING", "STARTED",
+        )
+        can_retry = run["status"] in ("FAILURE", "CANCELED")
+
+        context = self._build_context(request, {
+            "title": f"Run {run_id[:8]}…",
+            "run": run,
+            "can_cancel": can_cancel,
+            "can_retry": can_retry,
+        })
+        return TemplateResponse(
+            request, "django_dagster/run_detail.html", context
+        )
+
+    # -- Trigger job ---------------------------------------------------------
+
+    def trigger_view(self, request):
+        if request.method == "POST":
+            job_name = request.POST.get("job_name", "").strip()
+            config_json = request.POST.get("run_config", "").strip()
+
+            if not job_name:
+                self.message_user(
+                    request, "Job name is required", messages.ERROR
+                )
+                context = self._build_context(request, {
+                    "title": "Trigger Job",
+                    "run_config": config_json,
+                })
+                return TemplateResponse(
+                    request, "django_dagster/trigger_job.html", context
+                )
+
+            run_config = None
+            if config_json:
+                try:
+                    run_config = json.loads(config_json)
+                except json.JSONDecodeError as e:
+                    self.message_user(
+                        request, f"Invalid JSON config: {e}", messages.ERROR
+                    )
+                    context = self._build_context(request, {
+                        "title": "Trigger Job",
+                        "job_name": job_name,
+                        "run_config": config_json,
+                    })
+                    return TemplateResponse(
+                        request, "django_dagster/trigger_job.html", context
+                    )
+
+            try:
+                run_id = client.submit_job(job_name, run_config=run_config)
+                self.message_user(
+                    request,
+                    f"Job '{job_name}' triggered. Run ID: {run_id}",
+                    messages.SUCCESS,
+                )
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:django_dagster_dagsterjob_run_detail",
+                        args=[run_id],
+                    )
+                )
+            except Exception as e:
+                self.message_user(
+                    request, f"Failed to trigger job: {e}", messages.ERROR
+                )
+
+        job_name = request.GET.get("job", "")
+        jobs = None
+        try:
+            jobs = client.get_jobs()
+        except Exception:
+            pass
+
+        context = self._build_context(request, {
+            "title": "Trigger Job",
+            "job_name": job_name,
+            "jobs": jobs,
+        })
+        return TemplateResponse(
+            request, "django_dagster/trigger_job.html", context
+        )
+
+    # -- Cancel run ----------------------------------------------------------
+
+    def cancel_run_view(self, request, run_id):
+        if request.method == "POST":
+            try:
+                client.cancel_run(run_id)
+                self.message_user(
+                    request,
+                    f"Run {run_id[:8]}… cancellation requested",
+                    messages.SUCCESS,
+                )
+            except Exception as e:
+                self.message_user(
+                    request, f"Failed to cancel run: {e}", messages.ERROR
+                )
+        return HttpResponseRedirect(
+            reverse(
+                "admin:django_dagster_dagsterjob_run_detail", args=[run_id]
+            )
+        )
+
+    # -- Retry run -----------------------------------------------------------
+
+    def retry_run_view(self, request, run_id):
+        if request.method == "POST":
+            try:
+                new_run_id = client.retry_run(run_id)
+                self.message_user(
+                    request,
+                    f"Run retried. New run ID: {new_run_id}",
+                    messages.SUCCESS,
+                )
+                return HttpResponseRedirect(
+                    reverse(
+                        "admin:django_dagster_dagsterjob_run_detail",
+                        args=[new_run_id],
+                    )
+                )
+            except Exception as e:
+                self.message_user(
+                    request, f"Failed to retry run: {e}", messages.ERROR
+                )
+        return HttpResponseRedirect(
+            reverse(
+                "admin:django_dagster_dagsterjob_run_detail", args=[run_id]
+            )
+        )
