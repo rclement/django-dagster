@@ -7,7 +7,6 @@
 <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
     &rsaquo; <a href="{% url 'admin:app_list' 'django_dagster' %}">{% trans 'Dagster' %}</a>
-    &rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_changelist' %}">{% trans 'Jobs' %}</a>
     {% block dagster_breadcrumbs %}{% endblock %}
 </div>
 {% endblock %}
@@ -15,23 +14,6 @@
 {% block extrahead %}
 {{ block.super }}
 <style>
-    .dagster-nav {
-        margin-bottom: 20px;
-        padding: 8px 0;
-    }
-    .dagster-nav a {
-        margin-right: 15px;
-        padding: 5px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        text-decoration: none;
-        color: var(--link-fg);
-    }
-    .dagster-nav a.active,
-    .dagster-nav a:hover {
-        background: var(--link-fg);
-        color: #fff;
-    }
     .dagster-table {
         width: 100%;
         border-collapse: collapse;
@@ -98,20 +80,6 @@
 
 {% block content %}
 <div id="content-main">
-    <div class="dagster-nav">
-        <a href="{% url 'admin:django_dagster_dagsterjob_changelist' %}"
-           {% if request.resolver_match.url_name == 'django_dagster_dagsterjob_changelist' %}class="active"{% endif %}>
-            Jobs
-        </a>
-        <a href="{% url 'admin:django_dagster_dagsterjob_runs' %}"
-           {% if request.resolver_match.url_name == 'django_dagster_dagsterjob_runs' %}class="active"{% endif %}>
-            Runs
-        </a>
-        <a href="{% url 'admin:django_dagster_dagsterjob_trigger' %}"
-           {% if request.resolver_match.url_name == 'django_dagster_dagsterjob_trigger' %}class="active"{% endif %}>
-            Trigger Job
-        </a>
-    </div>
     {% block dagster_content %}{% endblock %}
 </div>
 {% endblock %}

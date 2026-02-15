@@ -2,7 +2,9 @@
 
 {% block content_title %}<h1>{{ title }}</h1>{% endblock %}
 
-{% block dagster_breadcrumbs %}&rsaquo; Jobs{% endblock %}
+{% block dagster_breadcrumbs %}
+&rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_changelist' %}">Jobs</a>
+{% endblock %}
 
 {% block dagster_content %}
 {% if jobs is not None %}
@@ -25,8 +27,8 @@
                 <td>{{ job.repository }}</td>
                 <td>{{ job.location }}</td>
                 <td class="dagster-actions">
-                    <a href="{% url 'admin:django_dagster_dagsterjob_trigger' %}?job={{ job.name }}" class="button">Trigger</a>
-                    <a href="{% url 'admin:django_dagster_dagsterjob_runs' %}?job={{ job.name }}">Runs</a>
+                    <a href="{% url 'admin:django_dagster_dagsterjob_add' %}?job={{ job.name }}" class="button">Trigger</a>
+                    <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}?job={{ job.name }}">Runs</a>
                 </td>
             </tr>
             {% endfor %}
