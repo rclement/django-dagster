@@ -4,13 +4,19 @@ A Django plugin for interacting with a [Dagster](https://dagster.io/) server thr
 
 ## Features
 
-- Native Django Admin integration — shows up as a **Dagster > Jobs** section
+- Native Django Admin integration — shows up as a **Dagster** section
 - List all jobs from connected Dagster instance
-- View runs with status filtering
-- Trigger new job executions with optional JSON run config
+- View runs with status and job filtering, pagination
+- Trigger new job executions with optional JSON/YAML run config
 - Cancel running jobs
-- Retry failed/canceled jobs
-- View detailed run metadata (config, tags, step stats)
+- Re-execute failed/canceled jobs
+- View detailed run metadata (config, tags, event logs)
+- Optional granular permission system using Django's built-in permissions
+
+## Requirements
+
+- Python 3.10+
+- Django 4.2+
 
 ## Installation
 
@@ -31,9 +37,13 @@ INSTALLED_APPS = [
 DAGSTER_URL = "http://localhost:3000"
 ```
 
-No URL configuration is needed — the plugin registers itself with the Django admin automatically.
+Then run migrations to create the permission models:
 
-Navigate to `/admin/` and look for the **Dagster** section.
+```bash
+python manage.py migrate django_dagster
+```
+
+No URL configuration is needed — the plugin registers itself with the Django admin automatically. Navigate to `/admin/` and look for the **Dagster** section.
 
 ## Permissions
 
@@ -55,56 +65,18 @@ When enabled, access is governed by standard Django permissions that you can ass
 
 Superusers always have all permissions regardless of this setting.
 
-**Example: read-only viewer group**
+## Programmatic API
 
-In the Django admin, create a group called "Dagster Viewers" and assign it the `view_dagsterjob` and `view_dagsterrun` permissions. Users in this group can browse jobs and runs but cannot trigger, cancel, or re-execute.
+The package also exposes a Python API for use outside the admin:
+
+```python
+from django_dagster import get_jobs, get_runs, get_run, submit_job, cancel_run, reexecute_run
+```
 
 ## Demo
 
-The `demo/` directory contains a ready-to-run example with:
+A self-contained demo project is available in the [`demo/`](demo/) directory with sample Dagster jobs and pre-configured users. See [`demo/README.md`](demo/README.md) for instructions.
 
-- A Django project wired to `django_dagster`
-- Three sample Dagster jobs:
-  - **etl_pipeline** — a classic Extract-Transform-Load pipeline
-  - **generate_report_job** — a configurable report generator (pass JSON run config)
-  - **slow_job** — a deliberately long-running job for testing cancellation
+## License
 
-### Quick start
-
-You need **two terminals** — one for Dagster, one for Django.
-
-**Terminal 1 — Start Dagster:**
-
-```bash
-cd demo
-uv sync
-uv run dagster dev
-```
-
-Dagster will start at http://localhost:3000.
-
-**Terminal 2 — Start Django:**
-
-```bash
-cd demo
-uv run python manage.py setup_demo
-uv run python manage.py runserver
-```
-
-Then open http://localhost:8000/admin/ and log in with one of the pre-created users:
-
-- **admin** / **admin** — superuser with full access
-- **viewer** / **viewer** — staff user with view-only access (cannot trigger, cancel, or re-execute)
-
-The demo has `DAGSTER_PERMISSIONS_ENABLED = True` so you can see the permission system in action.
-
-### Things to try
-
-1. **Trigger a job** — click *Jobs*, then *Trigger* next to `etl_pipeline`
-2. **Use run config** — trigger `generate_report_job` with:
-   ```json
-   {"ops": {"generate_report": {"config": {"report_name": "weekly", "num_sections": 5}}}}
-   ```
-3. **Cancel a running job** — trigger `slow_job`, then open the run detail and hit *Cancel Run*
-4. **Retry a failed/canceled job** — after canceling, hit *Retry Run*
-5. **Filter runs** — use the status dropdown on the *Runs* page
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
