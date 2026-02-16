@@ -4,6 +4,7 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
 from django_dagster.models import DagsterJob, DagsterRun
+from reports.models import ReportRequest
 
 
 class Command(BaseCommand):
@@ -24,22 +25,29 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS("Created superuser 'admin' (password: admin)"))
 
-        # --- Viewer (staff, view-only) ---
-        if User.objects.filter(username="viewer").exists():
-            self.stdout.write("User 'viewer' already exists, skipping.")
+        # --- Viewer (staff, view-only + reports) ---
+        viewer, created = User.objects.get_or_create(
+            username="viewer",
+            defaults={"is_staff": True},
+        )
+        if created:
+            viewer.set_password("viewer")
+            viewer.save()
+
+        job_ct = ContentType.objects.get_for_model(DagsterJob)
+        run_ct = ContentType.objects.get_for_model(DagsterRun)
+        report_ct = ContentType.objects.get_for_model(ReportRequest)
+        viewer.user_permissions.set([
+            Permission.objects.get(content_type=job_ct, codename="view_dagsterjob"),
+            Permission.objects.get(content_type=run_ct, codename="view_dagsterrun"),
+            # Reports app: viewer can browse and create report requests
+            Permission.objects.get(content_type=report_ct, codename="view_reportrequest"),
+            Permission.objects.get(content_type=report_ct, codename="add_reportrequest"),
+        ])
+        if created:
+            self.stdout.write(self.style.SUCCESS("Created staff user 'viewer' (password: viewer)"))
         else:
-            viewer = User.objects.create_user(
-                username="viewer",
-                password="viewer",
-                is_staff=True,
-            )
-            job_ct = ContentType.objects.get_for_model(DagsterJob)
-            run_ct = ContentType.objects.get_for_model(DagsterRun)
-            viewer.user_permissions.add(
-                Permission.objects.get(content_type=job_ct, codename="view_dagsterjob"),
-                Permission.objects.get(content_type=run_ct, codename="view_dagsterrun"),
-            )
-            self.stdout.write(self.style.SUCCESS("Created staff user 'viewer' (password: viewer) — view-only"))
+            self.stdout.write("User 'viewer' already exists, permissions updated.")
 
         self.stdout.write()
         self.stdout.write("Demo is ready! Start the server with:")
@@ -48,3 +56,6 @@ class Command(BaseCommand):
         self.stdout.write("Login credentials:")
         self.stdout.write("  admin  / admin   — full access (superuser)")
         self.stdout.write("  viewer / viewer  — view-only (cannot trigger, cancel, or re-execute)")
+        self.stdout.write()
+        self.stdout.write("Try the Reports app (Reports > Report requests) to see how")
+        self.stdout.write("custom Django models can trigger Dagster jobs behind the scenes.")

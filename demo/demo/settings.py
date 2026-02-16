@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_dagster",
     "demo",
+    "reports",
 ]
 
 MIDDLEWARE = [
