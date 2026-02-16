@@ -9,6 +9,29 @@
 {% endblock %}
 
 {% block dagster_content %}
+<div class="submit-row">
+    {% if can_cancel %}
+    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_cancel' run.runId %}" style="display:inline;">
+        {% csrf_token %}
+        <input type="submit" value="{% trans 'Cancel Run' %}" onclick="return confirm('{% trans 'Cancel this run?' %}')">
+    </form>
+    {% endif %}
+    {% if can_reexecute %}
+    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_reexecute' run.runId %}" style="display:inline;">
+        {% csrf_token %}
+        <input type="submit" value="{% trans 'Re-execute' %}">
+    </form>
+    {% endif %}
+    <form method="get" action="{% url 'admin:django_dagster_dagsterrun_changelist' %}" style="display:inline;">
+        <input type="submit" value="{% trans 'All Runs' %}">
+    </form>
+    {% if dagster_run_ui_url %}
+    <form method="get" action="{{ dagster_run_ui_url }}" target="_blank" style="display:inline;">
+        <input type="submit" value="{% trans 'View in Dagster UI ↗' %}">
+    </form>
+    {% endif %}
+</div>
+
 <fieldset class="module aligned">
     <h2>{% trans 'Run Details' %}</h2>
     <div class="form-row">
@@ -149,24 +172,4 @@
 </div>
 {% endif %}
 
-<div class="submit-row">
-    {% if can_cancel %}
-    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_cancel' run.runId %}" style="display:inline;">
-        {% csrf_token %}
-        <input type="submit" value="{% trans 'Cancel Run' %}" onclick="return confirm('{% trans 'Cancel this run?' %}')">
-    </form>
-    {% endif %}
-    {% if can_reexecute %}
-    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_reexecute' run.runId %}" style="display:inline;">
-        {% csrf_token %}
-        <input type="submit" value="{% trans 'Re-execute' %}">
-    </form>
-    {% endif %}
-    <form method="get" action="{% url 'admin:django_dagster_dagsterrun_changelist' %}" style="display:inline;">
-        <input type="submit" value="{% trans 'All Runs' %}">
-    </form>
-    {% if dagster_run_ui_url %}
-    <a href="{{ dagster_run_ui_url }}" target="_blank" rel="noopener" class="button" style="display:inline-block;">{% trans 'View in Dagster UI' %} &#x2197;</a>
-    {% endif %}
-</div>
 {% endblock %}

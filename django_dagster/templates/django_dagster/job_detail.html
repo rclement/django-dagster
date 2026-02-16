@@ -9,6 +9,22 @@
 {% endblock %}
 
 {% block dagster_content %}
+<div class="submit-row">
+    <form method="get" action="{% url 'admin:django_dagster_dagsterjob_add' %}" style="display:inline;">
+        <input type="hidden" name="job" value="{{ job.name }}">
+        <input type="submit" value="{% trans 'Trigger New Run' %}">
+    </form>
+    <form method="get" action="{% url 'admin:django_dagster_dagsterrun_changelist' %}" style="display:inline;">
+        <input type="hidden" name="job" value="{{ job.name }}">
+        <input type="submit" value="{% trans 'View Runs' %}">
+    </form>
+    {% if dagster_job_ui_url %}
+    <form method="get" action="{{ dagster_job_ui_url }}" target="_blank" style="display:inline;">
+        <input type="submit" value="{% trans 'View in Dagster UI ↗' %}">
+    </form>
+    {% endif %}
+</div>
+
 <fieldset class="module aligned">
     <h2>{% trans 'Job Details' %}</h2>
     <div class="form-row">
@@ -71,17 +87,4 @@
 </div>
 {% endif %}
 
-<div class="submit-row">
-    <form method="get" action="{% url 'admin:django_dagster_dagsterjob_add' %}" style="display:inline;">
-        <input type="hidden" name="job" value="{{ job.name }}">
-        <input type="submit" value="{% trans 'Trigger New Run' %}">
-    </form>
-    <form method="get" action="{% url 'admin:django_dagster_dagsterrun_changelist' %}" style="display:inline;">
-        <input type="hidden" name="job" value="{{ job.name }}">
-        <input type="submit" value="{% trans 'View Runs' %}">
-    </form>
-    {% if dagster_job_ui_url %}
-    <a href="{{ dagster_job_ui_url }}" target="_blank" rel="noopener" class="button" style="display:inline-block;">{% trans 'View in Dagster UI' %} &#x2197;</a>
-    {% endif %}
-</div>
 {% endblock %}
