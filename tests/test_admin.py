@@ -8,8 +8,6 @@ from django.urls import reverse
 from django_dagster.admin import DagsterJobAdmin, DagsterRunAdmin
 from django_dagster.models import DagsterJob, DagsterRun
 
-PERMS_ENABLED = pytest.mark.usefixtures()  # placeholder, actual override below
-
 
 @pytest.fixture
 def perms_enabled(settings):
