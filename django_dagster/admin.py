@@ -1,10 +1,16 @@
 import json
+from typing import Any
 
 from django.conf import settings
 from django.contrib import admin, messages
-from django.http import HttpResponseForbidden, HttpResponseRedirect
+from django.http import (
+    HttpRequest,
+    HttpResponse,
+    HttpResponseForbidden,
+    HttpResponseRedirect,
+)
 from django.template.response import TemplateResponse
-from django.urls import path, reverse
+from django.urls import URLPattern, path, reverse
 
 from . import client
 from .models import DagsterJob, DagsterRun
@@ -15,54 +21,56 @@ from .models import DagsterJob, DagsterRun
 # ---------------------------------------------------------------------------
 
 
-class _DagsterAdminBase(admin.ModelAdmin):
+class _DagsterAdminBase(admin.ModelAdmin):  # type: ignore[type-arg]
     """Common permission logic for Dagster admin classes."""
 
     @staticmethod
-    def _permissions_enabled():
+    def _permissions_enabled() -> bool:
         return getattr(settings, "DAGSTER_PERMISSIONS_ENABLED", False)
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
 
-    def has_delete_permission(self, request, obj=None):
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
 
-    def has_view_permission(self, request, obj=None):
+    def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         if self._permissions_enabled():
             return super().has_view_permission(request, obj)
-        return request.user.is_active and request.user.is_staff
+        return bool(request.user.is_active and request.user.is_staff)
 
-    def has_module_permission(self, request):
+    def has_module_permission(self, request: HttpRequest) -> bool:
         if self._permissions_enabled():
             return super().has_module_permission(request)
-        return request.user.is_active and request.user.is_staff
+        return bool(request.user.is_active and request.user.is_staff)
 
-    def _check_view_perm(self, request):
+    def _check_view_perm(self, request: HttpRequest) -> HttpResponse | None:
         """Return HttpResponseForbidden if permissions are enabled and the
         user lacks view permission for this model, otherwise None."""
         if self._permissions_enabled() and not self.has_view_permission(request):
             return HttpResponseForbidden()
         return None
 
-    def _can_access_dagster_ui(self, request):
+    def _can_access_dagster_ui(self, request: HttpRequest) -> bool:
         """Check whether the current user may see Dagster UI links."""
         if not self._permissions_enabled():
             return True
-        return request.user.has_perm("django_dagster.access_dagster_ui")
+        return bool(request.user.has_perm("django_dagster.access_dagster_ui"))
 
-    def _build_context(self, request, extra=None):
-        dagster_url = getattr(settings, "DAGSTER_URL", None)
+    def _build_context(
+        self, request: HttpRequest, extra: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        dagster_url: str | None = getattr(settings, "DAGSTER_URL", None)
         show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
             request,
         )
-        context = {
+        context: dict[str, Any] = {
             **self.admin_site.each_context(request),
             "opts": self.model._meta,
             "app_label": self.model._meta.app_label,
             "dagster_url": dagster_url if show_dagster_ui else None,
         }
-        if show_dagster_ui:
+        if show_dagster_ui and dagster_url:
             base = dagster_url.rstrip("/")
             context["dagster_ui_jobs_url"] = f"{base}/jobs"
             context["dagster_ui_runs_url"] = f"{base}/runs"
@@ -72,7 +80,7 @@ class _DagsterAdminBase(admin.ModelAdmin):
         return context
 
     @staticmethod
-    def _dagster_job_ui_url(dagster_url, job):
+    def _dagster_job_ui_url(dagster_url: str | None, job: dict[str, Any]) -> str | None:
         """Build the Dagster UI URL for a specific job."""
         if not dagster_url:
             return None
@@ -83,7 +91,7 @@ class _DagsterAdminBase(admin.ModelAdmin):
         return f"{base}/locations/{repo}@{location}/jobs/{name}"
 
     @staticmethod
-    def _dagster_run_ui_url(dagster_url, run_id):
+    def _dagster_run_ui_url(dagster_url: str | None, run_id: str) -> str | None:
         """Build the Dagster UI URL for a specific run."""
         if not dagster_url:
             return None
@@ -98,11 +106,11 @@ class _DagsterAdminBase(admin.ModelAdmin):
 
 @admin.register(DagsterJob)
 class DagsterJobAdmin(_DagsterAdminBase):
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         # No generic "Add" link on the admin index; trigger is per-job.
         return False
 
-    def get_urls(self):
+    def get_urls(self) -> list[URLPattern]:
         info = (self.model._meta.app_label, self.model._meta.model_name)
         return [
             path(
@@ -124,7 +132,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
 
     # -- changelist ----------------------------------------------------------
 
-    def job_list_view(self, request):
+    def job_list_view(self, request: HttpRequest) -> HttpResponse:
         denied = self._check_view_perm(request)
         if denied:
             return denied
@@ -141,7 +149,8 @@ class DagsterJobAdmin(_DagsterAdminBase):
         sort = request.GET.get("o")
         if jobs is not None and sort in ("name", "-name"):
             jobs = sorted(
-                jobs, key=lambda j: j["name"],
+                jobs,
+                key=lambda j: j["name"],
                 reverse=sort.startswith("-"),
             )
 
@@ -152,21 +161,23 @@ class DagsterJobAdmin(_DagsterAdminBase):
         if jobs is not None and show_dagster_ui:
             for job in jobs:
                 job["dagster_ui_url"] = self._dagster_job_ui_url(
-                    dagster_url, job,
+                    dagster_url,
+                    job,
                 )
 
-        context = self._build_context(request, {
-            "title": "Dagster Jobs",
-            "jobs": jobs,
-            "current_sort": sort or "name",
-        })
-        return TemplateResponse(
-            request, "django_dagster/job_list.html", context
+        context = self._build_context(
+            request,
+            {
+                "title": "Dagster Jobs",
+                "jobs": jobs,
+                "current_sort": sort or "name",
+            },
         )
+        return TemplateResponse(request, "django_dagster/job_list.html", context)
 
     # -- change (detail) -----------------------------------------------------
 
-    def job_detail_view(self, request, job_name):
+    def job_detail_view(self, request: HttpRequest, job_name: str) -> HttpResponse:
         denied = self._check_view_perm(request)
         if denied:
             return denied
@@ -184,9 +195,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
             )
 
         if job is None:
-            self.message_user(
-                request, f"Job '{job_name}' not found", messages.ERROR
-            )
+            self.message_user(request, f"Job '{job_name}' not found", messages.ERROR)
             return HttpResponseRedirect(
                 reverse("admin:django_dagster_dagsterjob_changelist")
             )
@@ -195,7 +204,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
         recent_runs = None
         try:
             recent_runs = client.get_runs(job_name=job_name, limit=10)
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
@@ -205,39 +214,38 @@ class DagsterJobAdmin(_DagsterAdminBase):
 
         dagster_job_ui_url = None
         dagster_location_ui_url = None
-        if show_dagster_ui:
+        if show_dagster_ui and dagster_url:
             dagster_job_ui_url = self._dagster_job_ui_url(dagster_url, job)
             base = dagster_url.rstrip("/")
-            dagster_location_ui_url = (
-                f"{base}/locations/{job['location']}"
-            )
+            dagster_location_ui_url = f"{base}/locations/{job['location']}"
 
         if recent_runs is not None and show_dagster_ui:
             for run in recent_runs:
                 run["dagster_ui_url"] = self._dagster_run_ui_url(
-                    dagster_url, run["runId"],
+                    dagster_url,
+                    run["runId"],
                 )
 
-        can_trigger = (
-            not self._permissions_enabled()
-            or request.user.has_perm("django_dagster.trigger_dagsterjob")
+        can_trigger = not self._permissions_enabled() or request.user.has_perm(
+            "django_dagster.trigger_dagsterjob"
         )
 
-        context = self._build_context(request, {
-            "title": "View Dagster Job",
-            "job": job,
-            "recent_runs": recent_runs,
-            "can_trigger": can_trigger,
-            "dagster_job_ui_url": dagster_job_ui_url,
-            "dagster_location_ui_url": dagster_location_ui_url,
-        })
-        return TemplateResponse(
-            request, "django_dagster/job_detail.html", context
+        context = self._build_context(
+            request,
+            {
+                "title": "View Dagster Job",
+                "job": job,
+                "recent_runs": recent_runs,
+                "can_trigger": can_trigger,
+                "dagster_job_ui_url": dagster_job_ui_url,
+                "dagster_location_ui_url": dagster_location_ui_url,
+            },
         )
+        return TemplateResponse(request, "django_dagster/job_detail.html", context)
 
     # -- add (trigger) -------------------------------------------------------
 
-    def trigger_view(self, request, job_name):
+    def trigger_view(self, request: HttpRequest, job_name: str) -> HttpResponse:
         if self._permissions_enabled() and not request.user.has_perm(
             "django_dagster.trigger_dagsterjob"
         ):
@@ -255,7 +263,9 @@ class DagsterJobAdmin(_DagsterAdminBase):
                         request, f"Invalid JSON config: {e}", messages.ERROR
                     )
                     return self._render_trigger_form(
-                        request, job_name=job_name, run_config=config_json,
+                        request,
+                        job_name=job_name,
+                        run_config=config_json,
                     )
 
             try:
@@ -276,7 +286,9 @@ class DagsterJobAdmin(_DagsterAdminBase):
                     request, f"Failed to trigger job: {e}", messages.ERROR
                 )
                 return self._render_trigger_form(
-                    request, job_name=job_name, run_config=config_json,
+                    request,
+                    job_name=job_name,
+                    run_config=config_json,
                 )
 
         # GET: fetch default run config
@@ -285,22 +297,27 @@ class DagsterJobAdmin(_DagsterAdminBase):
             config = client.get_job_default_run_config(job_name)
             if config:
                 default_config = json.dumps(config, indent=2)
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
         return self._render_trigger_form(
-            request, job_name=job_name, run_config=default_config,
+            request,
+            job_name=job_name,
+            run_config=default_config,
         )
 
-    def _render_trigger_form(self, request, job_name, run_config=""):
-        context = self._build_context(request, {
-            "title": "Trigger Dagster Job Run",
-            "job_name": job_name,
-            "run_config": run_config,
-        })
-        return TemplateResponse(
-            request, "django_dagster/trigger_job.html", context
+    def _render_trigger_form(
+        self, request: HttpRequest, job_name: str, run_config: str = ""
+    ) -> TemplateResponse:
+        context = self._build_context(
+            request,
+            {
+                "title": "Trigger Dagster Job Run",
+                "job_name": job_name,
+                "run_config": run_config,
+            },
         )
+        return TemplateResponse(request, "django_dagster/trigger_job.html", context)
 
 
 # ---------------------------------------------------------------------------
@@ -310,10 +327,10 @@ class DagsterJobAdmin(_DagsterAdminBase):
 
 @admin.register(DagsterRun)
 class DagsterRunAdmin(_DagsterAdminBase):
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         return False
 
-    def get_urls(self):
+    def get_urls(self) -> list[URLPattern]:
         info = (self.model._meta.app_label, self.model._meta.model_name)
         return [
             path(
@@ -340,7 +357,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
 
     # -- changelist ----------------------------------------------------------
 
-    SORT_KEYS = {
+    SORT_KEYS: dict[str, str] = {
         "run_id": "runId",
         "job": "jobName",
         "status": "status",
@@ -348,7 +365,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
         "ended": "endTime",
     }
 
-    def run_list_view(self, request):
+    def run_list_view(self, request: HttpRequest) -> HttpResponse:
         denied = self._check_view_perm(request)
         if denied:
             return denied
@@ -384,41 +401,43 @@ class DagsterRunAdmin(_DagsterAdminBase):
         if runs is not None and show_dagster_ui:
             for run in runs:
                 run["dagster_ui_url"] = self._dagster_run_ui_url(
-                    dagster_url, run["runId"],
+                    dagster_url,
+                    run["runId"],
                 )
 
         # Fetch job list for the filter sidebar
         jobs = None
         try:
             jobs = client.get_jobs()
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
-        context = self._build_context(request, {
-            "title": "Dagster Runs",
-            "runs": runs,
-            "jobs": jobs,
-            "current_job": job_name,
-            "current_status": status,
-            "current_sort": sort,
-            "statuses": [
-                "QUEUED",
-                "NOT_STARTED",
-                "STARTING",
-                "STARTED",
-                "SUCCESS",
-                "FAILURE",
-                "CANCELING",
-                "CANCELED",
-            ],
-        })
-        return TemplateResponse(
-            request, "django_dagster/run_list.html", context
+        context = self._build_context(
+            request,
+            {
+                "title": "Dagster Runs",
+                "runs": runs,
+                "jobs": jobs,
+                "current_job": job_name,
+                "current_status": status,
+                "current_sort": sort,
+                "statuses": [
+                    "QUEUED",
+                    "NOT_STARTED",
+                    "STARTING",
+                    "STARTED",
+                    "SUCCESS",
+                    "FAILURE",
+                    "CANCELING",
+                    "CANCELED",
+                ],
+            },
         )
+        return TemplateResponse(request, "django_dagster/run_list.html", context)
 
     # -- change (detail) -----------------------------------------------------
 
-    def run_detail_view(self, request, object_id):
+    def run_detail_view(self, request: HttpRequest, object_id: str) -> HttpResponse:
         denied = self._check_view_perm(request)
         if denied:
             return denied
@@ -427,23 +446,24 @@ class DagsterRunAdmin(_DagsterAdminBase):
         try:
             run = client.get_run(object_id)
         except Exception as e:
-            self.message_user(
-                request, f"Failed to fetch run: {e}", messages.ERROR
-            )
+            self.message_user(request, f"Failed to fetch run: {e}", messages.ERROR)
 
         if run is None:
-            self.message_user(
-                request, f"Run {object_id} not found", messages.ERROR
-            )
+            self.message_user(request, f"Run {object_id} not found", messages.ERROR)
             return HttpResponseRedirect(
                 reverse("admin:django_dagster_dagsterrun_changelist")
             )
 
         status_can_cancel = run["status"] in (
-            "QUEUED", "NOT_STARTED", "STARTING", "STARTED",
+            "QUEUED",
+            "NOT_STARTED",
+            "STARTING",
+            "STARTED",
         )
         status_can_reexecute = run["status"] in (
-            "SUCCESS", "FAILURE", "CANCELED",
+            "SUCCESS",
+            "FAILURE",
+            "CANCELED",
         )
 
         if self._permissions_enabled():
@@ -461,9 +481,10 @@ class DagsterRunAdmin(_DagsterAdminBase):
         related_runs = None
         try:
             related_runs = client.get_runs(
-                job_name=run["jobName"], limit=10,
+                job_name=run["jobName"],
+                limit=10,
             )
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
         # Fetch event logs for this run
@@ -472,7 +493,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
             events_data = client.get_run_events(object_id)
             if events_data:
                 events = events_data["events"]
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
@@ -484,44 +505,49 @@ class DagsterRunAdmin(_DagsterAdminBase):
         dagster_job_ui_url = None
         if show_dagster_ui:
             dagster_run_ui_url = self._dagster_run_ui_url(
-                dagster_url, object_id,
+                dagster_url,
+                object_id,
             )
             # Look up the job to build its Dagster UI URL
             try:
                 jobs = client.get_jobs()
                 job = next(
-                    (j for j in jobs if j["name"] == run["jobName"]), None,
+                    (j for j in jobs if j["name"] == run["jobName"]),
+                    None,
                 )
                 if job:
                     dagster_job_ui_url = self._dagster_job_ui_url(
-                        dagster_url, job,
+                        dagster_url,
+                        job,
                     )
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
         if related_runs is not None and show_dagster_ui:
             for r in related_runs:
                 r["dagster_ui_url"] = self._dagster_run_ui_url(
-                    dagster_url, r["runId"],
+                    dagster_url,
+                    r["runId"],
                 )
 
-        context = self._build_context(request, {
-            "title": f"Run {object_id}",
-            "run": run,
-            "can_cancel": can_cancel,
-            "can_reexecute": can_reexecute,
-            "related_runs": related_runs,
-            "events": events,
-            "dagster_run_ui_url": dagster_run_ui_url,
-            "dagster_job_ui_url": dagster_job_ui_url,
-        })
-        return TemplateResponse(
-            request, "django_dagster/run_detail.html", context
+        context = self._build_context(
+            request,
+            {
+                "title": f"Run {object_id}",
+                "run": run,
+                "can_cancel": can_cancel,
+                "can_reexecute": can_reexecute,
+                "related_runs": related_runs,
+                "events": events,
+                "dagster_run_ui_url": dagster_run_ui_url,
+                "dagster_job_ui_url": dagster_job_ui_url,
+            },
         )
+        return TemplateResponse(request, "django_dagster/run_detail.html", context)
 
     # -- cancel --------------------------------------------------------------
 
-    def cancel_run_view(self, request, run_id):
+    def cancel_run_view(self, request: HttpRequest, run_id: str) -> HttpResponse:
         if self._permissions_enabled() and not request.user.has_perm(
             "django_dagster.cancel_dagsterrun"
         ):
@@ -536,16 +562,14 @@ class DagsterRunAdmin(_DagsterAdminBase):
                     messages.SUCCESS,
                 )
             except Exception as e:
-                self.message_user(
-                    request, f"Failed to cancel run: {e}", messages.ERROR
-                )
+                self.message_user(request, f"Failed to cancel run: {e}", messages.ERROR)
         return HttpResponseRedirect(
             reverse("admin:django_dagster_dagsterrun_change", args=[run_id])
         )
 
     # -- re-execute ----------------------------------------------------------
 
-    def reexecute_run_view(self, request, run_id):
+    def reexecute_run_view(self, request: HttpRequest, run_id: str) -> HttpResponse:
         if self._permissions_enabled() and not request.user.has_perm(
             "django_dagster.reexecute_dagsterrun"
         ):

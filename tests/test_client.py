@@ -1,20 +1,14 @@
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tests.conftest import (
-    GRAPHQL_REPOSITORIES_RESPONSE,
-    GRAPHQL_RUN_DETAIL_RESPONSE,
-    GRAPHQL_RUN_EVENTS_RESPONSE,
-    GRAPHQL_RUN_NOT_FOUND_RESPONSE,
-    GRAPHQL_RUNS_RESPONSE,
-    _make_run_detail_response,
-)
+from tests.conftest import make_run_detail_response
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_client_parses_url(mock_cls, settings):
+def test_get_client_parses_url(mock_cls: MagicMock, settings: Any) -> None:
     settings.DAGSTER_URL = "https://dagster.example.com:8080"
 
     from django_dagster.client import get_client
@@ -28,7 +22,7 @@ def test_get_client_parses_url(mock_cls, settings):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_client_http_defaults(mock_cls, settings):
+def test_get_client_http_defaults(mock_cls: MagicMock, settings: Any) -> None:
     settings.DAGSTER_URL = "http://localhost:3000"
 
     from django_dagster.client import get_client
@@ -42,9 +36,11 @@ def test_get_client_http_defaults(mock_cls, settings):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_jobs(mock_cls):
+def test_get_jobs(
+    mock_cls: MagicMock, graphql_repositories_response: dict[str, Any]
+) -> None:
     mock_client = MagicMock()
-    mock_client._execute.return_value = GRAPHQL_REPOSITORIES_RESPONSE
+    mock_client._execute.return_value = graphql_repositories_response
     mock_cls.return_value = mock_client
 
     from django_dagster.client import get_jobs
@@ -68,9 +64,9 @@ def test_get_jobs(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_runs(mock_cls):
+def test_get_runs(mock_cls: MagicMock, graphql_runs_response: dict[str, Any]) -> None:
     mock_client = MagicMock()
-    mock_client._execute.return_value = GRAPHQL_RUNS_RESPONSE
+    mock_client._execute.return_value = graphql_runs_response
     mock_cls.return_value = mock_client
 
     from django_dagster.client import get_runs
@@ -82,11 +78,13 @@ def test_get_runs(mock_cls):
     assert runs[0]["status"] == "SUCCESS"
     # Timestamps should be converted to datetime
     assert isinstance(runs[0]["startTime"], datetime)
-    assert runs[0]["startTime"] == datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc)
+    assert runs[0]["startTime"] == datetime(
+        2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc
+    )
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_runs_with_filters(mock_cls):
+def test_get_runs_with_filters(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client._execute.return_value = {"runsOrError": {"results": []}}
     mock_cls.return_value = mock_client
@@ -108,7 +106,7 @@ def test_get_runs_with_filters(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_runs_no_filter_key_when_empty(mock_cls):
+def test_get_runs_no_filter_key_when_empty(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client._execute.return_value = {"runsOrError": {"results": []}}
     mock_cls.return_value = mock_client
@@ -124,14 +122,17 @@ def test_get_runs_no_filter_key_when_empty(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_run(mock_cls):
+def test_get_run(
+    mock_cls: MagicMock, graphql_run_detail_response: dict[str, Any]
+) -> None:
     mock_client = MagicMock()
-    mock_client._execute.return_value = GRAPHQL_RUN_DETAIL_RESPONSE
+    mock_client._execute.return_value = graphql_run_detail_response
     mock_cls.return_value = mock_client
 
     from django_dagster.client import get_run
 
     run = get_run("abc12345-def0-1234-5678-abcdef012345")
+    assert run is not None
 
     assert run["runId"] == "abc12345-def0-1234-5678-abcdef012345"
     assert run["jobName"] == "etl_job"
@@ -142,9 +143,11 @@ def test_get_run(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_run_not_found(mock_cls):
+def test_get_run_not_found(
+    mock_cls: MagicMock, graphql_run_not_found_response: dict[str, Any]
+) -> None:
     mock_client = MagicMock()
-    mock_client._execute.return_value = GRAPHQL_RUN_NOT_FOUND_RESPONSE
+    mock_client._execute.return_value = graphql_run_not_found_response
     mock_cls.return_value = mock_client
 
     from django_dagster.client import get_run
@@ -154,7 +157,7 @@ def test_get_run_not_found(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_run_python_error(mock_cls):
+def test_get_run_python_error(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client._execute.return_value = {
         "runOrError": {
@@ -171,7 +174,7 @@ def test_get_run_python_error(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_submit_job(mock_cls):
+def test_submit_job(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client.submit_job_execution.return_value = "new-run-id-123"
     mock_cls.return_value = mock_client
@@ -195,7 +198,7 @@ def test_submit_job(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_cancel_run(mock_cls):
+def test_cancel_run(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_cls.return_value = mock_client
 
@@ -206,11 +209,11 @@ def test_cancel_run(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_reexecute_run(mock_cls):
+def test_reexecute_run(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     # First call: get_run fetches the original run detail
     # Second call: submit_job triggers re-execution
-    mock_client._execute.return_value = _make_run_detail_response(
+    mock_client._execute.return_value = make_run_detail_response(
         run_id="original-run-id", status="SUCCESS"
     )
     mock_client.submit_job_execution.return_value = "new-run-id"
@@ -232,9 +235,11 @@ def test_reexecute_run(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_reexecute_run_not_found(mock_cls):
+def test_reexecute_run_not_found(
+    mock_cls: MagicMock, graphql_run_not_found_response: dict[str, Any]
+) -> None:
     mock_client = MagicMock()
-    mock_client._execute.return_value = GRAPHQL_RUN_NOT_FOUND_RESPONSE
+    mock_client._execute.return_value = graphql_run_not_found_response
     mock_cls.return_value = mock_client
 
     from django_dagster.client import reexecute_run
@@ -244,10 +249,10 @@ def test_reexecute_run_not_found(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_reexecute_run_empty_config(mock_cls):
+def test_reexecute_run_empty_config(mock_cls: MagicMock) -> None:
     """When run config is empty YAML ({}), it should pass None."""
     mock_client = MagicMock()
-    response = _make_run_detail_response()
+    response = make_run_detail_response()
     response["runOrError"]["runConfigYaml"] = "{}\n"
     response["runOrError"]["tags"] = []
     mock_client._execute.return_value = response
@@ -268,9 +273,35 @@ def test_reexecute_run_empty_config(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_run_events(mock_cls):
+def test_reexecute_run_no_config(mock_cls: MagicMock) -> None:
+    """When run has no runConfigYaml, run_config should be None."""
     mock_client = MagicMock()
-    mock_client._execute.return_value = GRAPHQL_RUN_EVENTS_RESPONSE
+    response = make_run_detail_response()
+    response["runOrError"]["runConfigYaml"] = ""
+    response["runOrError"]["tags"] = []
+    mock_client._execute.return_value = response
+    mock_client.submit_job_execution.return_value = "new-id"
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import reexecute_run
+
+    reexecute_run("some-id")
+
+    mock_client.submit_job_execution.assert_called_once_with(
+        job_name="etl_job",
+        repository_location_name=None,
+        repository_name=None,
+        run_config=None,
+        tags=None,
+    )
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_run_events(
+    mock_cls: MagicMock, graphql_run_events_response: dict[str, Any]
+) -> None:
+    mock_client = MagicMock()
+    mock_client._execute.return_value = graphql_run_events_response
     mock_cls.return_value = mock_client
 
     from django_dagster.client import get_run_events
@@ -289,7 +320,7 @@ def test_get_run_events(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_run_events_not_found(mock_cls):
+def test_get_run_events_not_found(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client._execute.return_value = {
         "logsForRun": {
@@ -306,7 +337,7 @@ def test_get_run_events_not_found(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_run_events_python_error(mock_cls):
+def test_get_run_events_python_error(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client._execute.return_value = {
         "logsForRun": {
@@ -323,12 +354,32 @@ def test_get_run_events_python_error(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_job_default_run_config(mock_cls):
+def test_get_run_events_no_limit(
+    mock_cls: MagicMock, graphql_run_events_response: dict[str, Any]
+) -> None:
+    """When limit=0, the limit variable should not be set."""
+    mock_client = MagicMock()
+    mock_client._execute.return_value = graphql_run_events_response
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_run_events
+
+    get_run_events("abc123", limit=0)
+
+    call_args = mock_client._execute.call_args
+    variables = call_args[0][1]
+    assert "limit" not in variables
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_job_default_run_config(
+    mock_cls: MagicMock, graphql_repositories_response: dict[str, Any]
+) -> None:
     mock_client = MagicMock()
     # First call: get_jobs
     # Second call: runConfigSchemaOrError
     mock_client._execute.side_effect = [
-        GRAPHQL_REPOSITORIES_RESPONSE,
+        graphql_repositories_response,
         {
             "runConfigSchemaOrError": {
                 "rootDefaultYaml": "ops:\n  my_op:\n    config:\n      param: value\n",
@@ -353,10 +404,12 @@ def test_get_job_default_run_config(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_job_default_run_config_empty(mock_cls):
+def test_get_job_default_run_config_empty(
+    mock_cls: MagicMock, graphql_repositories_response: dict[str, Any]
+) -> None:
     mock_client = MagicMock()
     mock_client._execute.side_effect = [
-        GRAPHQL_REPOSITORIES_RESPONSE,
+        graphql_repositories_response,
         {"runConfigSchemaOrError": {"rootDefaultYaml": "{}\n"}},
     ]
     mock_cls.return_value = mock_client
@@ -369,9 +422,30 @@ def test_get_job_default_run_config_empty(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_job_default_run_config_unknown_job(mock_cls):
+def test_get_job_default_run_config_no_yaml(
+    mock_cls: MagicMock, graphql_repositories_response: dict[str, Any]
+) -> None:
+    """When rootDefaultYaml is empty string, should return empty dict."""
     mock_client = MagicMock()
-    mock_client._execute.return_value = GRAPHQL_REPOSITORIES_RESPONSE
+    mock_client._execute.side_effect = [
+        graphql_repositories_response,
+        {"runConfigSchemaOrError": {"rootDefaultYaml": ""}},
+    ]
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_job_default_run_config
+
+    config = get_job_default_run_config("etl_job")
+
+    assert config == {}
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_job_default_run_config_unknown_job(
+    mock_cls: MagicMock, graphql_repositories_response: dict[str, Any]
+) -> None:
+    mock_client = MagicMock()
+    mock_client._execute.return_value = graphql_repositories_response
     mock_cls.return_value = mock_client
 
     from django_dagster.client import get_job_default_run_config
@@ -381,13 +455,31 @@ def test_get_job_default_run_config_unknown_job(mock_cls):
     assert config == {}
 
 
-def test_parse_timestamp_none():
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_run_events_with_cursor(
+    mock_cls: MagicMock, graphql_run_events_response: dict[str, Any]
+) -> None:
+    """When cursor is provided, afterCursor variable should be set."""
+    mock_client = MagicMock()
+    mock_client._execute.return_value = graphql_run_events_response
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_run_events
+
+    get_run_events("abc123", cursor="some-cursor")
+
+    call_args = mock_client._execute.call_args
+    variables = call_args[0][1]
+    assert variables["afterCursor"] == "some-cursor"
+
+
+def test_parse_timestamp_none() -> None:
     from django_dagster.client import _parse_timestamp
 
     assert _parse_timestamp(None) is None
 
 
-def test_parse_timestamp_converts():
+def test_parse_timestamp_converts() -> None:
     from django_dagster.client import _parse_timestamp
 
     result = _parse_timestamp(1700000000.0)

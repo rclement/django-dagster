@@ -13,10 +13,33 @@ logger = logging.getLogger(__name__)
 
 @admin.register(ReportRequest)
 class ReportRequestAdmin(admin.ModelAdmin):
-    list_display = ["title", "report_type", "num_sections", "status_display", "run_link", "created_by", "created_at"]
+    list_display = [
+        "title",
+        "report_type",
+        "num_sections",
+        "status_display",
+        "run_link",
+        "created_by",
+        "created_at",
+    ]
     list_filter = ["report_type", "status"]
-    readonly_fields = ["dagster_run_link", "status", "created_by", "created_at", "updated_at"]
-    fields = ["title", "report_type", "num_sections", "dagster_run_link", "status", "created_by", "created_at", "updated_at"]
+    readonly_fields = [
+        "dagster_run_link",
+        "status",
+        "created_by",
+        "created_at",
+        "updated_at",
+    ]
+    fields = [
+        "title",
+        "report_type",
+        "num_sections",
+        "dagster_run_link",
+        "status",
+        "created_by",
+        "created_at",
+        "updated_at",
+    ]
 
     def get_fields(self, request, obj=None):
         if obj is None:
@@ -36,7 +59,11 @@ class ReportRequestAdmin(admin.ModelAdmin):
             "NOT_STARTED": "#ffc107",
         }
         colour = colours.get(obj.status, "#6c757d")
-        return format_html('<span style="color:{}; font-weight:bold">{}</span>', colour, obj.status or "—")
+        return format_html(
+            '<span style="color:{}; font-weight:bold">{}</span>',
+            colour,
+            obj.status or "—",
+        )
 
     status_display.short_description = "Status"
 
@@ -44,7 +71,9 @@ class ReportRequestAdmin(admin.ModelAdmin):
         """Link to the built-in Dagster run admin detail page (used in detail view)."""
         if not obj.dagster_run_id:
             return "—"
-        url = reverse("admin:django_dagster_dagsterrun_change", args=[obj.dagster_run_id])
+        url = reverse(
+            "admin:django_dagster_dagsterrun_change", args=[obj.dagster_run_id]
+        )
         return format_html('<a href="{}">{}</a>', url, obj.dagster_run_id)
 
     dagster_run_link.short_description = "Dagster Run"
@@ -53,7 +82,9 @@ class ReportRequestAdmin(admin.ModelAdmin):
         """Shorter link for the list view."""
         if not obj.dagster_run_id:
             return "—"
-        url = reverse("admin:django_dagster_dagsterrun_change", args=[obj.dagster_run_id])
+        url = reverse(
+            "admin:django_dagster_dagsterrun_change", args=[obj.dagster_run_id]
+        )
         return format_html('<a href="{}">{}</a>', url, obj.dagster_run_id[:8])
 
     run_link.short_description = "Dagster Run"

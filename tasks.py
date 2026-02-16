@@ -1,0 +1,46 @@
+from invoke import task
+from invoke.context import Context
+
+app_path = "django_dagster"
+tests_path = "tests"
+
+
+@task
+def format(ctx: Context) -> None:
+    ctx.run("ruff format .", echo=True, pty=True)
+
+
+@task
+def audit(ctx: Context) -> None:
+    ignored_vulns: list[str] = []
+    options = [f"--ignore-vuln {vuln}" for vuln in ignored_vulns]
+    ctx.run(f"pip-audit {' '.join(options)}", echo=True, pty=True)
+
+
+@task
+def vuln(ctx: Context) -> None:
+    ctx.run(f"bandit -r {app_path}", echo=True, pty=True)
+
+
+@task
+def lint(ctx: Context) -> None:
+    ctx.run("ruff check .", echo=True, pty=True)
+
+
+@task
+def typing(ctx: Context) -> None:
+    ctx.run(f"mypy {app_path} {tests_path}", echo=True, pty=True)
+
+
+@task
+def test(ctx: Context) -> None:
+    ctx.run(
+        f"pytest -v --cov={app_path} --cov={tests_path} --cov-branch --cov-report=term-missing {tests_path}",
+        echo=True,
+        pty=True,
+    )
+
+
+@task(audit, vuln, lint, typing, test)
+def qa(ctx: Context) -> None:
+    pass
