@@ -84,9 +84,10 @@
 </fieldset>
 
 {% if events %}
-<div class="inline-related tabular">
+<div class="inline-related tabular" style="margin-bottom:20px;">
 <fieldset class="module">
     <h2>{% trans 'Event Log' %}</h2>
+    <div style="max-height:400px;overflow-y:auto;">
     <table>
         <thead>
             <tr>
@@ -109,6 +110,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </fieldset>
 </div>
 {% endif %}
