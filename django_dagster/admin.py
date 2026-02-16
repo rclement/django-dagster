@@ -252,7 +252,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
 
 
 # ---------------------------------------------------------------------------
-# Runs  (list + detail + cancel / retry)
+# Runs  (list + detail + cancel / re-execute)
 # ---------------------------------------------------------------------------
 
 
@@ -280,9 +280,9 @@ class DagsterRunAdmin(_DagsterAdminBase):
                 name="%s_%s_cancel" % info,
             ),
             path(
-                "<str:run_id>/retry/",
-                self.admin_site.admin_view(self.retry_run_view),
-                name="%s_%s_retry" % info,
+                "<str:run_id>/re-execute/",
+                self.admin_site.admin_view(self.reexecute_run_view),
+                name="%s_%s_reexecute" % info,
             ),
         ]
 
@@ -379,7 +379,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
         can_cancel = run["status"] in (
             "QUEUED", "NOT_STARTED", "STARTING", "STARTED",
         )
-        can_retry = run["status"] in ("FAILURE", "CANCELED")
+        can_reexecute = run["status"] in ("SUCCESS", "FAILURE", "CANCELED")
 
         # Fetch recent runs for the same job
         related_runs = None
@@ -403,7 +403,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
             "title": f"Run {object_id}",
             "run": run,
             "can_cancel": can_cancel,
-            "can_retry": can_retry,
+            "can_reexecute": can_reexecute,
             "related_runs": related_runs,
             "dagster_run_ui_url": dagster_run_ui_url,
         })
@@ -430,15 +430,15 @@ class DagsterRunAdmin(_DagsterAdminBase):
             reverse("admin:django_dagster_dagsterrun_change", args=[run_id])
         )
 
-    # -- retry ---------------------------------------------------------------
+    # -- re-execute ----------------------------------------------------------
 
-    def retry_run_view(self, request, run_id):
+    def reexecute_run_view(self, request, run_id):
         if request.method == "POST":
             try:
-                new_run_id = client.retry_run(run_id)
+                new_run_id = client.reexecute_run(run_id)
                 self.message_user(
                     request,
-                    f"Run retried. New run ID: {new_run_id}",
+                    f"Run re-executed. New run ID: {new_run_id}",
                     messages.SUCCESS,
                 )
                 return HttpResponseRedirect(
@@ -449,7 +449,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
                 )
             except Exception as e:
                 self.message_user(
-                    request, f"Failed to retry run: {e}", messages.ERROR
+                    request, f"Failed to re-execute run: {e}", messages.ERROR
                 )
         return HttpResponseRedirect(
             reverse("admin:django_dagster_dagsterrun_change", args=[run_id])
