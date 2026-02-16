@@ -165,6 +165,12 @@ class DagsterJobAdmin(_DagsterAdminBase):
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
         dagster_job_ui_url = self._dagster_job_ui_url(dagster_url, job)
+        dagster_location_ui_url = None
+        if dagster_url:
+            base = dagster_url.rstrip("/")
+            dagster_location_ui_url = (
+                f"{base}/locations/{job['location']}"
+            )
 
         if recent_runs is not None and dagster_url:
             for run in recent_runs:
@@ -177,6 +183,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
             "job": job,
             "recent_runs": recent_runs,
             "dagster_job_ui_url": dagster_job_ui_url,
+            "dagster_location_ui_url": dagster_location_ui_url,
         })
         return TemplateResponse(
             request, "django_dagster/job_detail.html", context
@@ -396,6 +403,21 @@ class DagsterRunAdmin(_DagsterAdminBase):
         dagster_url = getattr(settings, "DAGSTER_URL", None)
         dagster_run_ui_url = self._dagster_run_ui_url(dagster_url, object_id)
 
+        # Look up the job to build its Dagster UI URL
+        dagster_job_ui_url = None
+        if dagster_url:
+            try:
+                jobs = client.get_jobs()
+                job = next(
+                    (j for j in jobs if j["name"] == run["jobName"]), None,
+                )
+                if job:
+                    dagster_job_ui_url = self._dagster_job_ui_url(
+                        dagster_url, job,
+                    )
+            except Exception:
+                pass
+
         if related_runs is not None and dagster_url:
             for r in related_runs:
                 r["dagster_ui_url"] = self._dagster_run_ui_url(
@@ -410,6 +432,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
             "related_runs": related_runs,
             "events": events,
             "dagster_run_ui_url": dagster_run_ui_url,
+            "dagster_job_ui_url": dagster_job_ui_url,
         })
         return TemplateResponse(
             request, "django_dagster/run_detail.html", context
