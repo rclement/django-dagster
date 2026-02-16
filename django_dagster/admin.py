@@ -1,5 +1,6 @@
 import json
 
+from django.conf import settings
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
@@ -34,6 +35,7 @@ class _DagsterAdminBase(admin.ModelAdmin):
             **self.admin_site.each_context(request),
             "opts": self.model._meta,
             "app_label": self.model._meta.app_label,
+            "dagster_url": getattr(settings, "DAGSTER_URL", None),
         }
         if extra:
             context.update(extra)
@@ -81,9 +83,18 @@ class DagsterJobAdmin(_DagsterAdminBase):
                 request, f"Failed to connect to Dagster: {e}", messages.ERROR
             )
 
+        # Sort jobs by name
+        sort = request.GET.get("o")
+        if jobs is not None and sort in ("name", "-name"):
+            jobs = sorted(
+                jobs, key=lambda j: j["name"],
+                reverse=sort.startswith("-"),
+            )
+
         context = self._build_context(request, {
-            "title": "Jobs",
+            "title": "Dagster Jobs",
             "jobs": jobs,
+            "current_sort": sort or "name",
         })
         return TemplateResponse(
             request, "django_dagster/job_list.html", context
@@ -112,9 +123,17 @@ class DagsterJobAdmin(_DagsterAdminBase):
                 reverse("admin:django_dagster_dagsterjob_changelist")
             )
 
+        # Fetch recent runs for this job
+        recent_runs = None
+        try:
+            recent_runs = client.get_runs(job_name=job_name, limit=10)
+        except Exception:
+            pass
+
         context = self._build_context(request, {
-            "title": job_name,
+            "title": "View Dagster Job",
             "job": job,
+            "recent_runs": recent_runs,
         })
         return TemplateResponse(
             request, "django_dagster/job_detail.html", context
@@ -248,7 +267,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
             pass
 
         context = self._build_context(request, {
-            "title": "Runs",
+            "title": "Dagster Runs",
             "runs": runs,
             "jobs": jobs,
             "current_job": job_name,
@@ -292,11 +311,21 @@ class DagsterRunAdmin(_DagsterAdminBase):
         )
         can_retry = run["status"] in ("FAILURE", "CANCELED")
 
+        # Fetch recent runs for the same job
+        related_runs = None
+        try:
+            related_runs = client.get_runs(
+                job_name=run["jobName"], limit=10,
+            )
+        except Exception:
+            pass
+
         context = self._build_context(request, {
             "title": f"Run {object_id}",
             "run": run,
             "can_cancel": can_cancel,
             "can_retry": can_retry,
+            "related_runs": related_runs,
         })
         return TemplateResponse(
             request, "django_dagster/run_detail.html", context

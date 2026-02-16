@@ -43,6 +43,11 @@
 
 {% block content %}
 <div id="content-main">
+    {% if dagster_url %}
+    <div class="module" style="padding:8px 12px;margin-bottom:15px;font-size:12px;color:var(--body-quiet-color);">
+        {% trans 'Dagster instance:' %} <strong>{{ dagster_url }}</strong>
+    </div>
+    {% endif %}
     {% block dagster_content %}{% endblock %}
 </div>
 {% endblock %}

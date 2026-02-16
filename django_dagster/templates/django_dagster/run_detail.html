@@ -10,6 +10,7 @@
 
 {% block dagster_content %}
 <fieldset class="module aligned">
+    <h2>{% trans 'Run Details' %}</h2>
     <div class="form-row">
         <div>
             <label>{% trans 'Run ID:' %}</label>
@@ -82,6 +83,34 @@
     {% endif %}
 </fieldset>
 
+{% if related_runs %}
+<div class="inline-related tabular">
+<fieldset class="module">
+    <h2>{% trans 'Recent Runs for' %} {{ run.jobName }}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>{% trans 'Run ID' %}</th>
+                <th>{% trans 'Status' %}</th>
+                <th>{% trans 'Started' %}</th>
+                <th>{% trans 'Ended' %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in related_runs %}
+            <tr{% if r.runId == run.runId %} style="font-weight:bold;"{% endif %}>
+                <td><a href="{% url 'admin:django_dagster_dagsterrun_change' r.runId %}">{{ r.runId }}</a></td>
+                <td><span class="status-badge status-{{ r.status }}">{{ r.status }}</span></td>
+                <td>{{ r.startTime|default:"—" }}</td>
+                <td>{{ r.endTime|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</fieldset>
+</div>
+{% endif %}
+
 <div class="submit-row">
     {% if can_cancel %}
     <form method="post" action="{% url 'admin:django_dagster_dagsterrun_cancel' run.runId %}" style="display:inline;">
@@ -95,6 +124,8 @@
         <input type="submit" value="{% trans 'Retry Run' %}" class="default">
     </form>
     {% endif %}
-    <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}?job={{ run.jobName }}" class="closelink">{% trans 'All runs for' %} {{ run.jobName }}</a>
+    <form method="get" action="{% url 'admin:django_dagster_dagsterrun_changelist' %}" style="display:inline;">
+        <input type="submit" value="{% trans 'All Runs' %}">
+    </form>
 </div>
 {% endblock %}

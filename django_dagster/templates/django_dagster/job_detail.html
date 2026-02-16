@@ -10,6 +10,7 @@
 
 {% block dagster_content %}
 <fieldset class="module aligned">
+    <h2>{% trans 'Job Details' %}</h2>
     <div class="form-row">
         <div>
             <label>{% trans 'Name:' %}</label>
@@ -36,8 +37,42 @@
     </div>
 </fieldset>
 
+{% if recent_runs %}
+<div class="inline-related tabular">
+<fieldset class="module">
+    <h2>{% trans 'Recent Runs' %}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>{% trans 'Run ID' %}</th>
+                <th>{% trans 'Status' %}</th>
+                <th>{% trans 'Started' %}</th>
+                <th>{% trans 'Ended' %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for run in recent_runs %}
+            <tr>
+                <td><a href="{% url 'admin:django_dagster_dagsterrun_change' run.runId %}">{{ run.runId }}</a></td>
+                <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
+                <td>{{ run.startTime|default:"—" }}</td>
+                <td>{{ run.endTime|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</fieldset>
+</div>
+{% endif %}
+
 <div class="submit-row">
-    <a href="{% url 'admin:django_dagster_dagsterjob_add' %}?job={{ job.name }}" class="default" style="display:inline-block;padding:10px 15px;">{% trans 'Trigger New Run' %}</a>
-    <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}?job={{ job.name }}" style="display:inline-block;padding:10px 15px;">{% trans 'View Runs' %}</a>
+    <form method="get" action="{% url 'admin:django_dagster_dagsterjob_add' %}" style="display:inline;">
+        <input type="hidden" name="job" value="{{ job.name }}">
+        <input type="submit" value="{% trans 'Trigger New Run' %}" class="default">
+    </form>
+    <form method="get" action="{% url 'admin:django_dagster_dagsterrun_changelist' %}" style="display:inline;">
+        <input type="hidden" name="job" value="{{ job.name }}">
+        <input type="submit" value="{% trans 'View Runs' %}">
+    </form>
 </div>
 {% endblock %}

@@ -15,8 +15,16 @@
     <table id="result_list">
         <thead>
             <tr>
-                <th scope="col"><div class="text"><a href="#">{% trans 'Job Name' %}</a></div></th>
-                <th scope="col"><div class="text"><a href="#">{% trans 'Description' %}</a></div></th>
+                <th scope="col" class="{% if current_sort == 'name' %}sorted ascending{% elif current_sort == '-name' %}sorted descending{% endif %}">
+                    <div class="text">
+                        {% if current_sort == 'name' %}
+                        <a href="?o=-name">{% trans 'Job Name' %}</a>
+                        {% else %}
+                        <a href="?o=name">{% trans 'Job Name' %}</a>
+                        {% endif %}
+                    </div>
+                </th>
+                <th scope="col"><div class="text">{% trans 'Description' %}</div></th>
             </tr>
         </thead>
         <tbody>
