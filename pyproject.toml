@@ -3,12 +3,27 @@ name = "django-dagster"
 version = "0.1.0"
 description = "Django plugin for interacting with a Dagster server"
 requires-python = ">=3.10,<3.15"
+authors = [
+    { name = "Romain Clement", email = "git@romain-clement.net" },
+]
+keywords = ["django", "dagster", "admin", "pipeline", "orchestration"]
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.1",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 license = "Apache-2.0"
 dependencies = [
