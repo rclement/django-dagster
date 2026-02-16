@@ -28,6 +28,12 @@ Django plugin for interacting with a Dagster server. Provides Django Admin views
 - `uv run inv vuln` - security scan with bandit
 - `uv run inv shots` - generate admin screenshots (requires demo server)
 
+## Git commits
+
+- Use [Conventional Commits](https://www.conventionalcommits.org/) format with scopes when applicable (e.g. `feat(admin):`, `fix(client):`, `docs(readme):`, `chore(deps):`)
+- Test coverage must be 100% (enforced in CI)
+- Type checking uses strict mypy
+
 ## Releases
 
 - Version tags have **no `v` prefix** (e.g. `0.1.0`, not `v0.1.0`)
