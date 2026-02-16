@@ -29,7 +29,7 @@
     <div class="form-row">
         <div>
             <label>{% trans 'Name:' %}</label>
-            <div class="readonly">{{ job.name }}</div>
+            <div class="readonly">{{ job.name }}{% if dagster_job_ui_url %} <a href="{{ dagster_job_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}" style="opacity:.5;text-decoration:none;font-size:11px;">&#x2197;</a>{% endif %}</div>
         </div>
     </div>
     <div class="form-row">
@@ -41,13 +41,13 @@
     <div class="form-row">
         <div>
             <label>{% trans 'Repository:' %}</label>
-            <div class="readonly">{{ job.repository }}</div>
+            <div class="readonly">{{ job.repository }}{% if dagster_ui_locations_url %} <a href="{{ dagster_ui_locations_url }}" target="_blank" rel="noopener" title="{% trans 'Code locations in Dagster UI' %}" style="opacity:.5;text-decoration:none;font-size:11px;">&#x2197;</a>{% endif %}</div>
         </div>
     </div>
     <div class="form-row">
         <div>
             <label>{% trans 'Location:' %}</label>
-            <div class="readonly">{{ job.location }}</div>
+            <div class="readonly">{{ job.location }}{% if dagster_location_ui_url %} <a href="{{ dagster_location_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View code location in Dagster UI' %}" style="opacity:.5;text-decoration:none;font-size:11px;">&#x2197;</a>{% endif %}</div>
         </div>
     </div>
 </fieldset>

@@ -37,13 +37,13 @@
     <div class="form-row">
         <div>
             <label>{% trans 'Run ID:' %}</label>
-            <div class="readonly"><code>{{ run.runId }}</code></div>
+            <div class="readonly"><code>{{ run.runId }}</code>{% if dagster_run_ui_url %} <a href="{{ dagster_run_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}" style="opacity:.5;text-decoration:none;font-size:11px;">&#x2197;</a>{% endif %}</div>
         </div>
     </div>
     <div class="form-row">
         <div>
             <label>{% trans 'Job:' %}</label>
-            <div class="readonly">{{ run.jobName }}</div>
+            <div class="readonly">{{ run.jobName }}{% if dagster_job_ui_url %} <a href="{{ dagster_job_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View job in Dagster UI' %}" style="opacity:.5;text-decoration:none;font-size:11px;">&#x2197;</a>{% endif %}</div>
         </div>
     </div>
     <div class="form-row">
