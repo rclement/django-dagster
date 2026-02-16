@@ -142,6 +142,58 @@ def get_run(run_id):
     return _format_run(run_data)
 
 
+def get_run_events(run_id, cursor=None, limit=1000):
+    """Fetch event logs for a run."""
+    client = get_client()
+    variables = {"runId": run_id}
+    if cursor:
+        variables["afterCursor"] = cursor
+    if limit:
+        variables["limit"] = limit
+
+    result = client._execute(
+        """
+        query($runId: ID!, $afterCursor: String, $limit: Int) {
+            logsForRun(runId: $runId, afterCursor: $afterCursor, limit: $limit) {
+                ... on EventConnection {
+                    events {
+                        __typename
+                        message
+                        timestamp
+                        level
+                        stepKey
+                    }
+                    cursor
+                    hasMore
+                }
+                ... on RunNotFoundError { message }
+                ... on PythonError { message }
+            }
+        }
+        """,
+        variables,
+    )
+    data = result["logsForRun"]
+    typename = data.get("__typename", "EventConnection")
+    if typename == "RunNotFoundError":
+        return None
+    if typename == "PythonError":
+        raise Exception(data["message"])
+
+    events = data.get("events", [])
+    for event in events:
+        event["timestamp"] = _parse_timestamp(event.get("timestamp"))
+        # Rename __typename so Django templates can access it (no leading _)
+        if "__typename" in event:
+            event["event_type"] = event.pop("__typename")
+
+    return {
+        "events": events,
+        "cursor": data.get("cursor"),
+        "has_more": data.get("hasMore", False),
+    }
+
+
 def submit_job(
     job_name,
     repository_location_name=None,

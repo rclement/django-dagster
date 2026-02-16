@@ -83,6 +83,36 @@
     {% endif %}
 </fieldset>
 
+{% if events %}
+<div class="inline-related tabular">
+<fieldset class="module">
+    <h2>{% trans 'Event Log' %}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width:160px;">{% trans 'Timestamp' %}</th>
+                <th style="width:70px;">{% trans 'Level' %}</th>
+                <th style="width:120px;">{% trans 'Step' %}</th>
+                <th style="width:160px;">{% trans 'Event' %}</th>
+                <th>{% trans 'Message' %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr class="{% if event.level == 'ERROR' or event.level == 'CRITICAL' %}row-error{% endif %}">
+                <td style="white-space:nowrap;font-size:12px;">{{ event.timestamp|default:"—" }}</td>
+                <td><span class="event-level event-level-{{ event.level }}">{{ event.level }}</span></td>
+                <td style="font-size:12px;">{{ event.stepKey|default:"—" }}</td>
+                <td style="font-size:12px;">{{ event.event_type }}</td>
+                <td style="font-size:12px;word-break:break-word;">{{ event.message }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</fieldset>
+</div>
+{% endif %}
+
 {% if related_runs %}
 <div class="inline-related tabular">
 <fieldset class="module">

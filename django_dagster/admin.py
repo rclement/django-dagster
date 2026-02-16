@@ -390,6 +390,15 @@ class DagsterRunAdmin(_DagsterAdminBase):
         except Exception:
             pass
 
+        # Fetch event logs for this run
+        events = None
+        try:
+            events_data = client.get_run_events(object_id)
+            if events_data:
+                events = events_data["events"]
+        except Exception:
+            pass
+
         dagster_url = getattr(settings, "DAGSTER_URL", None)
         dagster_run_ui_url = self._dagster_run_ui_url(dagster_url, object_id)
 
@@ -405,6 +414,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
             "can_cancel": can_cancel,
             "can_reexecute": can_reexecute,
             "related_runs": related_runs,
+            "events": events,
             "dagster_run_ui_url": dagster_run_ui_url,
         })
         return TemplateResponse(

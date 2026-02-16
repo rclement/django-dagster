@@ -634,6 +634,56 @@ class TestRunDetailView:
         assert b"Cancel Run" not in resp.content
         assert b"Re-execute" in resp.content
 
+    @patch("django_dagster.admin.client.get_run_events")
+    @patch("django_dagster.admin.client.get_run")
+    def test_event_logs_shown(self, mock_get_run, mock_get_events, mock_get_runs, staff_client):
+        mock_get_run.return_value = self._make_run()
+        mock_get_runs.return_value = []
+        mock_get_events.return_value = {
+            "events": [
+                {
+                    "event_type": "RunStartEvent",
+                    "message": "Started execution of run.",
+                    "timestamp": datetime(2023, 11, 14, tzinfo=timezone.utc),
+                    "level": "DEBUG",
+                    "stepKey": None,
+                },
+                {
+                    "event_type": "LogMessageEvent",
+                    "message": "Processing data...",
+                    "timestamp": datetime(2023, 11, 14, 0, 1, tzinfo=timezone.utc),
+                    "level": "INFO",
+                    "stepKey": "my_op",
+                },
+            ],
+            "cursor": "2",
+            "has_more": False,
+        }
+
+        run_id = "abc12345-def0-1234-5678-abcdef012345"
+        resp = staff_client.get(reverse(RUN_URLS["change"], args=[run_id]))
+
+        assert resp.status_code == 200
+        assert b"Event Log" in resp.content
+        assert b"Started execution of run." in resp.content
+        assert b"Processing data..." in resp.content
+        assert b"RunStartEvent" in resp.content
+        assert b"my_op" in resp.content
+
+    @patch("django_dagster.admin.client.get_run_events")
+    @patch("django_dagster.admin.client.get_run")
+    def test_event_logs_error_graceful(self, mock_get_run, mock_get_events, mock_get_runs, staff_client):
+        mock_get_run.return_value = self._make_run()
+        mock_get_runs.return_value = []
+        mock_get_events.side_effect = Exception("Connection refused")
+
+        run_id = "abc12345-def0-1234-5678-abcdef012345"
+        resp = staff_client.get(reverse(RUN_URLS["change"], args=[run_id]))
+
+        assert resp.status_code == 200
+        # Should still render without event logs
+        assert b"Event Log" not in resp.content
+
     @patch("django_dagster.admin.client.get_run")
     def test_not_found_redirects(self, mock_get_run, mock_get_runs, staff_client):
         mock_get_run.return_value = None
