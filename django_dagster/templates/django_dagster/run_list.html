@@ -8,41 +8,166 @@
 {% endblock %}
 
 {% block dagster_content %}
-<div id="changelist">
-<div id="toolbar"><form method="get">
-    <label for="id_job">{% trans 'Job:' %}</label>
-    <select id="id_job" name="job">
-        <option value="">{% trans 'All' %}</option>
-        {% if jobs %}
-            {% for job in jobs %}
-            <option value="{{ job.name }}" {% if job.name == current_job %}selected{% endif %}>{{ job.name }}</option>
-            {% endfor %}
-        {% endif %}
-        {% if current_job and not jobs %}
-            <option value="{{ current_job }}" selected>{{ current_job }}</option>
-        {% endif %}
-    </select>
-    <label for="id_status">{% trans 'Status:' %}</label>
-    <select id="id_status" name="status">
-        <option value="">{% trans 'All' %}</option>
-        {% for s in statuses %}
-        <option value="{{ s }}" {% if s == current_status %}selected{% endif %}>{{ s }}</option>
-        {% endfor %}
-    </select>
-    <input type="submit" value="{% trans 'Filter' %}">
-</form></div>
+<div id="changelist" class="filtered">
+<div class="changelist-form-container">
 
+    <search id="changelist-filter">
+        <h2>{% trans 'Filter' %}</h2>
+        <details data-filter-title="{% trans 'job' %}" open>
+            <summary>
+                {% trans 'By job' %}
+            </summary>
+            <ul>
+                <li{% if not current_job %} class="selected"{% endif %}>
+                    <a href="?{% if current_status %}status={{ current_status }}{% endif %}">{% trans 'All' %}</a>
+                </li>
+                {% if jobs %}
+                    {% for job in jobs %}
+                    <li{% if job.name == current_job %} class="selected"{% endif %}>
+                        <a href="?job={{ job.name }}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{{ job.name }}</a>
+                    </li>
+                    {% endfor %}
+                {% endif %}
+            </ul>
+        </details>
+        <details data-filter-title="{% trans 'status' %}" open>
+            <summary>
+                {% trans 'By status' %}
+            </summary>
+            <ul>
+                <li{% if not current_status %} class="selected"{% endif %}>
+                    <a href="?{% if current_job %}job={{ current_job }}{% endif %}">{% trans 'All' %}</a>
+                </li>
+                {% for s in statuses %}
+                <li{% if s == current_status %} class="selected"{% endif %}>
+                    <a href="?status={{ s }}{% if current_job %}&amp;job={{ current_job }}{% endif %}">{{ s }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </details>
+    </search>
+
+    <div>
 {% if runs is not None %}
     {% if runs %}
     <div class="results">
     <table id="result_list">
         <thead>
             <tr>
-                <th scope="col"><div class="text">{% trans 'Run ID' %}</div></th>
-                <th scope="col"><div class="text">{% trans 'Job' %}</div></th>
-                <th scope="col"><div class="text">{% trans 'Status' %}</div></th>
-                <th scope="col"><div class="text">{% trans 'Started' %}</div></th>
-                <th scope="col"><div class="text">{% trans 'Ended' %}</div></th>
+                {% if current_sort == 'run_id' %}
+                <th scope="col" class="sorted ascending column-runId">
+                    <div class="sortoptions">
+                        <a href="?o=-run_id{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle ascending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=-run_id{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Run ID' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% elif current_sort == '-run_id' %}
+                <th scope="col" class="sorted descending column-runId">
+                    <div class="sortoptions">
+                        <a href="?o=run_id{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle descending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=run_id{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Run ID' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% else %}
+                <th scope="col" class="sortable column-runId">
+                    <div class="text"><a href="?o=run_id{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Run ID' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% endif %}
+
+                {% if current_sort == 'job' %}
+                <th scope="col" class="sorted ascending column-jobName">
+                    <div class="sortoptions">
+                        <a href="?o=-job{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle ascending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=-job{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Job' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% elif current_sort == '-job' %}
+                <th scope="col" class="sorted descending column-jobName">
+                    <div class="sortoptions">
+                        <a href="?o=job{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle descending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=job{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Job' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% else %}
+                <th scope="col" class="sortable column-jobName">
+                    <div class="text"><a href="?o=job{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Job' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% endif %}
+
+                {% if current_sort == 'status' %}
+                <th scope="col" class="sorted ascending column-status">
+                    <div class="sortoptions">
+                        <a href="?o=-status{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle ascending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=-status{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Status' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% elif current_sort == '-status' %}
+                <th scope="col" class="sorted descending column-status">
+                    <div class="sortoptions">
+                        <a href="?o=status{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle descending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=status{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Status' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% else %}
+                <th scope="col" class="sortable column-status">
+                    <div class="text"><a href="?o=status{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Status' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% endif %}
+
+                {% if current_sort == 'started' %}
+                <th scope="col" class="sorted ascending column-startTime">
+                    <div class="sortoptions">
+                        <a href="?o=-started{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle ascending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=-started{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Started' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% elif current_sort == '-started' %}
+                <th scope="col" class="sorted descending column-startTime">
+                    <div class="sortoptions">
+                        <a href="?o=started{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle descending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=started{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Started' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% else %}
+                <th scope="col" class="sortable column-startTime">
+                    <div class="text"><a href="?o=started{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Started' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% endif %}
+
+                {% if current_sort == 'ended' %}
+                <th scope="col" class="sorted ascending column-endTime">
+                    <div class="sortoptions">
+                        <a href="?o=-ended{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle ascending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=-ended{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Ended' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% elif current_sort == '-ended' %}
+                <th scope="col" class="sorted descending column-endTime">
+                    <div class="sortoptions">
+                        <a href="?o=ended{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}" class="toggle descending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=ended{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Ended' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% else %}
+                <th scope="col" class="sortable column-endTime">
+                    <div class="text"><a href="?o=ended{% if current_job %}&amp;job={{ current_job }}{% endif %}{% if current_status %}&amp;status={{ current_status }}{% endif %}">{% trans 'Ended' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -64,5 +189,8 @@
     <p>{% trans 'No runs found' %}{% if current_job %} {% trans 'for job' %} "{{ current_job }}"{% endif %}{% if current_status %} {% trans 'with status' %} "{{ current_status }}"{% endif %}.</p>
     {% endif %}
 {% endif %}
+    </div>
+
+</div>
 </div>
 {% endblock %}

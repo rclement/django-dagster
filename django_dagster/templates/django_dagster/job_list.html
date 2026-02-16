@@ -15,15 +15,28 @@
     <table id="result_list">
         <thead>
             <tr>
-                <th scope="col" class="{% if current_sort == 'name' %}sorted ascending{% elif current_sort == '-name' %}sorted descending{% endif %}">
-                    <div class="text">
-                        {% if current_sort == 'name' %}
-                        <a href="?o=-name">{% trans 'Job Name' %}</a>
-                        {% else %}
-                        <a href="?o=name">{% trans 'Job Name' %}</a>
-                        {% endif %}
+                {% if current_sort == 'name' %}
+                <th scope="col" class="sorted ascending column-name">
+                    <div class="sortoptions">
+                        <a href="?o=-name" class="toggle ascending" title="{% trans 'Toggle sorting' %}"></a>
                     </div>
+                    <div class="text"><a href="?o=-name">{% trans 'Name' %}</a></div>
+                    <div class="clear"></div>
                 </th>
+                {% elif current_sort == '-name' %}
+                <th scope="col" class="sorted descending column-name">
+                    <div class="sortoptions">
+                        <a href="?o=name" class="toggle descending" title="{% trans 'Toggle sorting' %}"></a>
+                    </div>
+                    <div class="text"><a href="?o=name">{% trans 'Name' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% else %}
+                <th scope="col" class="sortable column-name">
+                    <div class="text"><a href="?o=name">{% trans 'Name' %}</a></div>
+                    <div class="clear"></div>
+                </th>
+                {% endif %}
                 <th scope="col"><div class="text">{% trans 'Description' %}</div></th>
             </tr>
         </thead>
