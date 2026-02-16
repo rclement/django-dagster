@@ -1081,6 +1081,33 @@ class TestRunDetailView:
 
     @patch("django_dagster.admin.client.get_jobs")
     @patch("django_dagster.admin.client.get_run")
+    def test_dagster_ui_job_not_found(
+        self,
+        mock_get_run: MagicMock,
+        mock_get_jobs: MagicMock,
+        mock_get_runs: MagicMock,
+        staff_client: Client,
+    ) -> None:
+        """When get_jobs succeeds but no job matches the run, no job UI link."""
+        mock_get_run.return_value = self._make_run()
+        mock_get_runs.return_value = []
+        mock_get_jobs.return_value = [
+            {
+                "name": "other_job",
+                "description": "",
+                "repository": "r",
+                "location": "l",
+            },
+        ]
+
+        run_id = "abc12345-def0-1234-5678-abcdef012345"
+        resp = staff_client.get(reverse(RUN_URLS["change"], args=[run_id]))
+
+        assert resp.status_code == 200
+        assert b"my_location/jobs/etl_job" not in resp.content
+
+    @patch("django_dagster.admin.client.get_jobs")
+    @patch("django_dagster.admin.client.get_run")
     def test_dagster_ui_job_lookup_error(
         self,
         mock_get_run: MagicMock,
