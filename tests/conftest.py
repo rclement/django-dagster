@@ -54,7 +54,9 @@ def full_perm_user(db):
         password="password",
         is_staff=True,
     )
-    _add_perms(user, DagsterJob, ["view_dagsterjob", "trigger_dagsterjob"])
+    _add_perms(user, DagsterJob, [
+        "view_dagsterjob", "trigger_dagsterjob", "access_dagster_ui",
+    ])
     _add_perms(user, DagsterRun, [
         "view_dagsterrun", "cancel_dagsterrun", "reexecute_dagsterrun",
     ])

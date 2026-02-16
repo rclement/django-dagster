@@ -8,6 +8,7 @@ class DagsterJob(models.Model):
         verbose_name_plural = "Jobs"
         permissions = [
             ("trigger_dagsterjob", "Can trigger Dagster jobs"),
+            ("access_dagster_ui", "Can access the Dagster UI"),
         ]
 
 
