@@ -41,7 +41,7 @@ class _DagsterAdminBase(admin.ModelAdmin):
 
 
 # ---------------------------------------------------------------------------
-# Jobs  (list + "add" = trigger)
+# Jobs  (list + detail + "add" = trigger)
 # ---------------------------------------------------------------------------
 
 
@@ -63,6 +63,11 @@ class DagsterJobAdmin(_DagsterAdminBase):
                 self.admin_site.admin_view(self.trigger_view),
                 name="%s_%s_add" % info,
             ),
+            path(
+                "<str:job_name>/change/",
+                self.admin_site.admin_view(self.job_detail_view),
+                name="%s_%s_change" % info,
+            ),
         ]
 
     # -- changelist ----------------------------------------------------------
@@ -82,6 +87,37 @@ class DagsterJobAdmin(_DagsterAdminBase):
         })
         return TemplateResponse(
             request, "django_dagster/job_list.html", context
+        )
+
+    # -- change (detail) -----------------------------------------------------
+
+    def job_detail_view(self, request, job_name):
+        job = None
+        try:
+            jobs = client.get_jobs()
+            for j in jobs:
+                if j["name"] == job_name:
+                    job = j
+                    break
+        except Exception as e:
+            self.message_user(
+                request, f"Failed to connect to Dagster: {e}", messages.ERROR
+            )
+
+        if job is None:
+            self.message_user(
+                request, f"Job '{job_name}' not found", messages.ERROR
+            )
+            return HttpResponseRedirect(
+                reverse("admin:django_dagster_dagsterjob_changelist")
+            )
+
+        context = self._build_context(request, {
+            "title": job_name,
+            "job": job,
+        })
+        return TemplateResponse(
+            request, "django_dagster/job_detail.html", context
         )
 
     # -- add (trigger) -------------------------------------------------------
@@ -204,9 +240,17 @@ class DagsterRunAdmin(_DagsterAdminBase):
                 request, f"Failed to connect to Dagster: {e}", messages.ERROR
             )
 
+        # Fetch job list for the filter dropdown
+        jobs = None
+        try:
+            jobs = client.get_jobs()
+        except Exception:
+            pass
+
         context = self._build_context(request, {
             "title": "Runs",
             "runs": runs,
+            "jobs": jobs,
             "current_job": job_name,
             "current_status": status,
             "statuses": [
@@ -249,7 +293,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
         can_retry = run["status"] in ("FAILURE", "CANCELED")
 
         context = self._build_context(request, {
-            "title": f"Run {object_id[:8]}…",
+            "title": f"Run {object_id}",
             "run": run,
             "can_cancel": can_cancel,
             "can_retry": can_retry,
@@ -266,7 +310,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
                 client.cancel_run(run_id)
                 self.message_user(
                     request,
-                    f"Run {run_id[:8]}… cancellation requested",
+                    f"Run {run_id} cancellation requested",
                     messages.SUCCESS,
                 )
             except Exception as e:

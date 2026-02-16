@@ -1,41 +1,39 @@
 {% extends "django_dagster/base.html" %}
+{% load i18n %}
 
 {% block content_title %}<h1>{{ title }}</h1>{% endblock %}
 
 {% block dagster_breadcrumbs %}
-&rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_changelist' %}">Jobs</a>
+&rsaquo; {% trans 'Jobs' %}
 {% endblock %}
 
 {% block dagster_content %}
 {% if jobs is not None %}
     {% if jobs %}
-    <table class="dagster-table">
+    <div id="changelist">
+    <div class="results">
+    <table id="result_list">
         <thead>
             <tr>
-                <th>Job Name</th>
-                <th>Description</th>
-                <th>Repository</th>
-                <th>Location</th>
-                <th>Actions</th>
+                <th scope="col"><div class="text"><a href="#">{% trans 'Job Name' %}</a></div></th>
+                <th scope="col"><div class="text"><a href="#">{% trans 'Description' %}</a></div></th>
             </tr>
         </thead>
         <tbody>
             {% for job in jobs %}
             <tr>
-                <td><strong>{{ job.name }}</strong></td>
+                <th scope="row">
+                    <a href="{% url 'admin:django_dagster_dagsterjob_change' job.name %}">{{ job.name }}</a>
+                </th>
                 <td>{{ job.description|default:"—" }}</td>
-                <td>{{ job.repository }}</td>
-                <td>{{ job.location }}</td>
-                <td class="dagster-actions">
-                    <a href="{% url 'admin:django_dagster_dagsterjob_add' %}?job={{ job.name }}" class="button">Trigger</a>
-                    <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}?job={{ job.name }}">Runs</a>
-                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    </div>
+    </div>
     {% else %}
-    <p>No jobs found. Make sure your Dagster instance has code locations loaded.</p>
+    <p>{% trans 'No jobs found. Make sure your Dagster instance has code locations loaded.' %}</p>
     {% endif %}
 {% endif %}
 {% endblock %}

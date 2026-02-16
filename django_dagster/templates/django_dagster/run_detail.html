@@ -1,81 +1,100 @@
 {% extends "django_dagster/base.html" %}
+{% load i18n %}
 
 {% block content_title %}<h1>{{ title }}</h1>{% endblock %}
 
 {% block dagster_breadcrumbs %}
-&rsaquo; <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}">Runs</a>
-&rsaquo; {{ run.runId|truncatechars:12 }}
+&rsaquo; <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}">{% trans 'Runs' %}</a>
+&rsaquo; {{ run.runId }}
 {% endblock %}
 
 {% block dagster_content %}
-<div style="margin-bottom: 15px;" class="dagster-actions">
+<fieldset class="module aligned">
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Run ID:' %}</label>
+            <div class="readonly"><code>{{ run.runId }}</code></div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Job:' %}</label>
+            <div class="readonly">{{ run.jobName }}</div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Status:' %}</label>
+            <div class="readonly"><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Started:' %}</label>
+            <div class="readonly">{{ run.startTime|default:"—" }}</div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Ended:' %}</label>
+            <div class="readonly">{{ run.endTime|default:"—" }}</div>
+        </div>
+    </div>
+    {% if run.stats %}
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Steps succeeded:' %}</label>
+            <div class="readonly">{{ run.stats.stepsSucceeded|default:"0" }}</div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Steps failed:' %}</label>
+            <div class="readonly">{{ run.stats.stepsFailed|default:"0" }}</div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Materializations:' %}</label>
+            <div class="readonly">{{ run.stats.materializations|default:"0" }}</div>
+        </div>
+    </div>
+    {% endif %}
+    {% if run.tags %}
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Tags:' %}</label>
+            <div class="readonly">
+                {% for tag in run.tags %}
+                <span style="display:inline-block;background:var(--darkened-bg);padding:2px 6px;margin:2px;border-radius:3px;font-size:12px;">{{ tag.key }}={{ tag.value }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if run.runConfigYaml %}
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Run config:' %}</label>
+            <div class="readonly"><pre class="dagster-config">{{ run.runConfigYaml }}</pre></div>
+        </div>
+    </div>
+    {% endif %}
+</fieldset>
+
+<div class="submit-row">
     {% if can_cancel %}
-    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_cancel' run.runId %}" style="display: inline;">
+    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_cancel' run.runId %}" style="display:inline;">
         {% csrf_token %}
-        <button type="submit" class="button" onclick="return confirm('Cancel this run?')">Cancel Run</button>
+        <input type="submit" value="{% trans 'Cancel Run' %}" class="default" onclick="return confirm('{% trans 'Cancel this run?' %}')">
     </form>
     {% endif %}
     {% if can_retry %}
-    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_retry' run.runId %}" style="display: inline;">
+    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_retry' run.runId %}" style="display:inline;">
         {% csrf_token %}
-        <button type="submit" class="button">Retry Run</button>
+        <input type="submit" value="{% trans 'Retry Run' %}" class="default">
     </form>
     {% endif %}
-    <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}?job={{ run.jobName }}" class="button">All Runs for {{ run.jobName }}</a>
+    <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}?job={{ run.jobName }}" class="closelink">{% trans 'All runs for' %} {{ run.jobName }}</a>
 </div>
-
-<table class="dagster-detail-table">
-    <tr>
-        <th>Run ID</th>
-        <td><code>{{ run.runId }}</code></td>
-    </tr>
-    <tr>
-        <th>Job</th>
-        <td>{{ run.jobName }}</td>
-    </tr>
-    <tr>
-        <th>Status</th>
-        <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
-    </tr>
-    <tr>
-        <th>Started</th>
-        <td>{{ run.startTime|default:"—" }}</td>
-    </tr>
-    <tr>
-        <th>Ended</th>
-        <td>{{ run.endTime|default:"—" }}</td>
-    </tr>
-    {% if run.stats %}
-    <tr>
-        <th>Steps Succeeded</th>
-        <td>{{ run.stats.stepsSucceeded|default:"0" }}</td>
-    </tr>
-    <tr>
-        <th>Steps Failed</th>
-        <td>{{ run.stats.stepsFailed|default:"0" }}</td>
-    </tr>
-    <tr>
-        <th>Materializations</th>
-        <td>{{ run.stats.materializations|default:"0" }}</td>
-    </tr>
-    {% endif %}
-    {% if run.tags %}
-    <tr>
-        <th>Tags</th>
-        <td>
-            {% for tag in run.tags %}
-            <span style="display:inline-block;background:var(--darkened-bg);padding:2px 6px;margin:2px;border-radius:3px;font-size:12px;">
-                {{ tag.key }}={{ tag.value }}
-            </span>
-            {% endfor %}
-        </td>
-    </tr>
-    {% endif %}
-    {% if run.runConfigYaml %}
-    <tr>
-        <th>Run Config</th>
-        <td><pre class="dagster-config">{{ run.runConfigYaml }}</pre></td>
-    </tr>
-    {% endif %}
-</table>
 {% endblock %}

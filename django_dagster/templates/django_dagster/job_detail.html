@@ -1,0 +1,43 @@
+{% extends "django_dagster/base.html" %}
+{% load i18n %}
+
+{% block content_title %}<h1>{{ title }}</h1>{% endblock %}
+
+{% block dagster_breadcrumbs %}
+&rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_changelist' %}">{% trans 'Jobs' %}</a>
+&rsaquo; {{ job.name }}
+{% endblock %}
+
+{% block dagster_content %}
+<fieldset class="module aligned">
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Name:' %}</label>
+            <div class="readonly">{{ job.name }}</div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Description:' %}</label>
+            <div class="readonly">{{ job.description|default:"—" }}</div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Repository:' %}</label>
+            <div class="readonly">{{ job.repository }}</div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>{% trans 'Location:' %}</label>
+            <div class="readonly">{{ job.location }}</div>
+        </div>
+    </div>
+</fieldset>
+
+<div class="submit-row">
+    <a href="{% url 'admin:django_dagster_dagsterjob_add' %}?job={{ job.name }}" class="default" style="display:inline-block;padding:10px 15px;">{% trans 'Trigger New Run' %}</a>
+    <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}?job={{ job.name }}" style="display:inline-block;padding:10px 15px;">{% trans 'View Runs' %}</a>
+</div>
+{% endblock %}
