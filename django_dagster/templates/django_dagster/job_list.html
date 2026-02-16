@@ -18,22 +18,22 @@
                 {% if current_sort == 'name' %}
                 <th scope="col" class="sorted ascending column-name">
                     <div class="sortoptions">
-                        <a href="?o=-name" class="toggle ascending" title="{% trans 'Toggle sorting' %}"></a>
+                        <a href="?o=-name" class="toggle ascending" role="button" title="{% trans 'Toggle sorting' %}"></a>
                     </div>
-                    <div class="text"><a href="?o=-name">{% trans 'Name' %}</a></div>
+                    <div class="text"><a role="button" href="?o=-name">{% trans 'Name' %}</a></div>
                     <div class="clear"></div>
                 </th>
                 {% elif current_sort == '-name' %}
                 <th scope="col" class="sorted descending column-name">
                     <div class="sortoptions">
-                        <a href="?o=name" class="toggle descending" title="{% trans 'Toggle sorting' %}"></a>
+                        <a href="?o=name" class="toggle descending" role="button" title="{% trans 'Toggle sorting' %}"></a>
                     </div>
-                    <div class="text"><a href="?o=name">{% trans 'Name' %}</a></div>
+                    <div class="text"><a role="button" href="?o=name">{% trans 'Name' %}</a></div>
                     <div class="clear"></div>
                 </th>
                 {% else %}
                 <th scope="col" class="sortable column-name">
-                    <div class="text"><a href="?o=name">{% trans 'Name' %}</a></div>
+                    <div class="text"><a role="button" href="?o=name">{% trans 'Name' %}</a></div>
                     <div class="clear"></div>
                 </th>
                 {% endif %}
