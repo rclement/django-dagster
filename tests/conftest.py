@@ -94,6 +94,51 @@ def _make_run_detail_response(
 
 GRAPHQL_RUN_DETAIL_RESPONSE = _make_run_detail_response()
 
+GRAPHQL_RUN_EVENTS_RESPONSE = {
+    "logsForRun": {
+        "__typename": "EventConnection",
+        "events": [
+            {
+                "__typename": "RunStartEvent",
+                "message": "Started execution of run.",
+                "timestamp": 1700000000.0,
+                "level": "DEBUG",
+                "stepKey": None,
+            },
+            {
+                "__typename": "StepStartEvent",
+                "message": "Started execution of step.",
+                "timestamp": 1700000001.0,
+                "level": "DEBUG",
+                "stepKey": "my_op",
+            },
+            {
+                "__typename": "LogMessageEvent",
+                "message": "Processing data...",
+                "timestamp": 1700000002.0,
+                "level": "INFO",
+                "stepKey": "my_op",
+            },
+            {
+                "__typename": "StepSuccessEvent",
+                "message": "Finished execution of step.",
+                "timestamp": 1700000003.0,
+                "level": "DEBUG",
+                "stepKey": "my_op",
+            },
+            {
+                "__typename": "RunSuccessEvent",
+                "message": "Finished execution of run.",
+                "timestamp": 1700000004.0,
+                "level": "DEBUG",
+                "stepKey": None,
+            },
+        ],
+        "cursor": "5",
+        "hasMore": False,
+    },
+}
+
 GRAPHQL_RUN_NOT_FOUND_RESPONSE = {
     "runOrError": {
         "__typename": "RunNotFoundError",

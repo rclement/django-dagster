@@ -6,6 +6,7 @@ import pytest
 from tests.conftest import (
     GRAPHQL_REPOSITORIES_RESPONSE,
     GRAPHQL_RUN_DETAIL_RESPONSE,
+    GRAPHQL_RUN_EVENTS_RESPONSE,
     GRAPHQL_RUN_NOT_FOUND_RESPONSE,
     GRAPHQL_RUNS_RESPONSE,
     _make_run_detail_response,
@@ -264,6 +265,61 @@ def test_reexecute_run_empty_config(mock_cls):
         run_config=None,
         tags=None,
     )
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_run_events(mock_cls):
+    mock_client = MagicMock()
+    mock_client._execute.return_value = GRAPHQL_RUN_EVENTS_RESPONSE
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_run_events
+
+    result = get_run_events("abc123")
+
+    assert result is not None
+    assert len(result["events"]) == 5
+    assert result["cursor"] == "5"
+    assert result["has_more"] is False
+    # Timestamps should be converted to datetime
+    assert isinstance(result["events"][0]["timestamp"], datetime)
+    assert result["events"][0]["event_type"] == "RunStartEvent"
+    assert result["events"][2]["message"] == "Processing data..."
+    assert result["events"][2]["stepKey"] == "my_op"
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_run_events_not_found(mock_cls):
+    mock_client = MagicMock()
+    mock_client._execute.return_value = {
+        "logsForRun": {
+            "__typename": "RunNotFoundError",
+            "message": "Run not found",
+        },
+    }
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_run_events
+
+    result = get_run_events("nonexistent")
+    assert result is None
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_run_events_python_error(mock_cls):
+    mock_client = MagicMock()
+    mock_client._execute.return_value = {
+        "logsForRun": {
+            "__typename": "PythonError",
+            "message": "Something broke",
+        },
+    }
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_run_events
+
+    with pytest.raises(Exception, match="Something broke"):
+        get_run_events("some-id")
 
 
 def test_parse_timestamp_none():
