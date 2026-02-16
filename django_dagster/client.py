@@ -158,10 +158,12 @@ def get_run_events(run_id, cursor=None, limit=1000):
                 ... on EventConnection {
                     events {
                         __typename
-                        message
-                        timestamp
-                        level
-                        stepKey
+                        ... on MessageEvent {
+                            message
+                            timestamp
+                            level
+                            stepKey
+                        }
                     }
                     cursor
                     hasMore
@@ -182,7 +184,11 @@ def get_run_events(run_id, cursor=None, limit=1000):
 
     events = data.get("events", [])
     for event in events:
-        event["timestamp"] = _parse_timestamp(event.get("timestamp"))
+        # Event log timestamps are in milliseconds; convert to seconds.
+        raw_ts = event.get("timestamp")
+        event["timestamp"] = _parse_timestamp(
+            str(float(raw_ts) / 1000) if raw_ts else None
+        )
         # Rename __typename so Django templates can access it (no leading _)
         if "__typename" in event:
             event["event_type"] = event.pop("__typename")
