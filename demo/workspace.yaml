@@ -1,4 +1,5 @@
 load_from:
-  - python_file:
-      relative_path: dagster_jobs/sample.py
+  - python_module:
+      module_name: dagster_jobs.sample
       attribute: defs
+      location_name: sample_dagster_jobs
