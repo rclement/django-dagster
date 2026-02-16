@@ -1,7 +1,8 @@
 [project]
 name = "django-dagster"
-version = "0.0.0"
+version = "0.1.0"
 description = "Django plugin for interacting with a Dagster server"
+readme = "README.md"
 requires-python = ">=3.10,<3.15"
 authors = [
     { name = "Romain Clement", email = "git@romain-clement.net" },
