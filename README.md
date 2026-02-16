@@ -6,8 +6,8 @@ A Django plugin for interacting with a [Dagster](https://dagster.io/) server thr
 
 - Native Django Admin integration — shows up as a **Dagster** section
 - List all jobs from connected Dagster instance
-- View runs with status and job filtering, pagination
-- Trigger new job executions with optional JSON/YAML run config
+- View runs with status and job filtering
+- Trigger new job executions with optional JSON run config
 - Cancel running jobs
 - Re-execute failed/canceled jobs
 - View detailed run metadata (config, tags, event logs)
