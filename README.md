@@ -54,7 +54,7 @@ You need **two terminals** — one for Dagster, one for Django.
 ```bash
 cd demo
 uv sync
-uv run dagster dev -f dagster_jobs/__init__.py
+uv run dagster dev
 ```
 
 Dagster will start at http://localhost:3000.

@@ -1,4 +1,4 @@
 load_from:
   - python_file:
-      relative_path: dagster_jobs/__init__.py
+      relative_path: dagster_jobs/sample.py
       attribute: defs
