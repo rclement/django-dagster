@@ -166,8 +166,8 @@ def cancel_run(run_id):
     client.terminate_run(run_id)
 
 
-def retry_run(run_id):
-    """Retry a run by re-executing with the same configuration."""
+def reexecute_run(run_id):
+    """Re-execute a run with the same configuration."""
     run = get_run(run_id)
     if run is None:
         raise ValueError(f"Run {run_id} not found")

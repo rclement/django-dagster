@@ -124,10 +124,10 @@
         <input type="submit" value="{% trans 'Cancel Run' %}" onclick="return confirm('{% trans 'Cancel this run?' %}')">
     </form>
     {% endif %}
-    {% if can_retry %}
-    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_retry' run.runId %}" style="display:inline;">
+    {% if can_reexecute %}
+    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_reexecute' run.runId %}" style="display:inline;">
         {% csrf_token %}
-        <input type="submit" value="{% trans 'Retry Run' %}">
+        <input type="submit" value="{% trans 'Re-execute' %}">
     </form>
     {% endif %}
     <form method="get" action="{% url 'admin:django_dagster_dagsterrun_changelist' %}" style="display:inline;">

@@ -44,7 +44,7 @@ RUN_URLS = {
     "changelist": "admin:django_dagster_dagsterrun_changelist",
     "change": "admin:django_dagster_dagsterrun_change",
     "cancel": "admin:django_dagster_dagsterrun_cancel",
-    "retry": "admin:django_dagster_dagsterrun_retry",
+    "reexecute": "admin:django_dagster_dagsterrun_reexecute",
 }
 
 
@@ -56,7 +56,7 @@ def test_urls_resolve():
     assert reverse(RUN_URLS["changelist"])
     assert reverse(RUN_URLS["change"], args=["abc123"])
     assert reverse(RUN_URLS["cancel"], args=["abc123"])
-    assert reverse(RUN_URLS["retry"], args=["abc123"])
+    assert reverse(RUN_URLS["reexecute"], args=["abc123"])
 
 
 # ---------------------------------------------------------------------------
@@ -83,8 +83,8 @@ class TestAuthRequired:
         url = reverse(RUN_URLS["cancel"], args=["abc123"])
         assert client.post(url).status_code == 302
 
-    def test_anonymous_retry(self, client):
-        url = reverse(RUN_URLS["retry"], args=["abc123"])
+    def test_anonymous_reexecute(self, client):
+        url = reverse(RUN_URLS["reexecute"], args=["abc123"])
         assert client.post(url).status_code == 302
 
     def test_non_staff_redirected(self, client, db):
@@ -611,7 +611,7 @@ class TestRunDetailView:
         assert b"Cancel Run" in resp.content
 
     @patch("django_dagster.admin.client.get_run")
-    def test_retry_button_shown_for_failed(self, mock_get_run, mock_get_runs, staff_client):
+    def test_reexecute_button_shown_for_failed(self, mock_get_run, mock_get_runs, staff_client):
         mock_get_run.return_value = self._make_run(status="FAILURE")
         mock_get_runs.return_value = []
 
@@ -619,11 +619,11 @@ class TestRunDetailView:
         resp = staff_client.get(reverse(RUN_URLS["change"], args=[run_id]))
 
         assert resp.status_code == 200
-        assert b"Retry Run" in resp.content
+        assert b"Re-execute" in resp.content
         assert b"Cancel Run" not in resp.content
 
     @patch("django_dagster.admin.client.get_run")
-    def test_no_action_buttons_for_success(self, mock_get_run, mock_get_runs, staff_client):
+    def test_reexecute_button_shown_for_success(self, mock_get_run, mock_get_runs, staff_client):
         mock_get_run.return_value = self._make_run(status="SUCCESS")
         mock_get_runs.return_value = []
 
@@ -632,7 +632,7 @@ class TestRunDetailView:
 
         assert resp.status_code == 200
         assert b"Cancel Run" not in resp.content
-        assert b"Retry Run" not in resp.content
+        assert b"Re-execute" in resp.content
 
     @patch("django_dagster.admin.client.get_run")
     def test_not_found_redirects(self, mock_get_run, mock_get_runs, staff_client):
@@ -729,48 +729,48 @@ class TestCancelRunView:
 
 
 # ---------------------------------------------------------------------------
-# Retry run
+# Re-execute run
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-class TestRetryRunView:
-    @patch("django_dagster.admin.client.retry_run")
-    def test_retry_success(self, mock_retry, staff_client):
-        mock_retry.return_value = "new-retry-id"
+class TestReexecuteRunView:
+    @patch("django_dagster.admin.client.reexecute_run")
+    def test_reexecute_success(self, mock_reexecute, staff_client):
+        mock_reexecute.return_value = "new-run-id"
 
         run_id = "failed-run-123"
-        resp = staff_client.post(reverse(RUN_URLS["retry"], args=[run_id]))
+        resp = staff_client.post(reverse(RUN_URLS["reexecute"], args=[run_id]))
 
         assert resp.status_code == 302
-        assert "new-retry-id" in resp.url
-        mock_retry.assert_called_once_with(run_id)
+        assert "new-run-id" in resp.url
+        mock_reexecute.assert_called_once_with(run_id)
 
-    @patch("django_dagster.admin.client.retry_run")
-    def test_retry_redirects_to_new_run(self, mock_retry, staff_client):
-        mock_retry.return_value = "new-retry-id"
+    @patch("django_dagster.admin.client.reexecute_run")
+    def test_reexecute_redirects_to_new_run(self, mock_reexecute, staff_client):
+        mock_reexecute.return_value = "new-run-id"
 
         resp = staff_client.post(
-            reverse(RUN_URLS["retry"], args=["old-run-id"])
+            reverse(RUN_URLS["reexecute"], args=["old-run-id"])
         )
 
-        expected = reverse(RUN_URLS["change"], args=["new-retry-id"])
+        expected = reverse(RUN_URLS["change"], args=["new-run-id"])
         assert resp.url == expected
 
-    @patch("django_dagster.admin.client.retry_run")
-    def test_retry_error(self, mock_retry, staff_client):
-        mock_retry.side_effect = Exception("Run not found")
+    @patch("django_dagster.admin.client.reexecute_run")
+    def test_reexecute_error(self, mock_reexecute, staff_client):
+        mock_reexecute.side_effect = Exception("Run not found")
 
         run_id = "bad-id"
-        resp = staff_client.post(reverse(RUN_URLS["retry"], args=[run_id]))
+        resp = staff_client.post(reverse(RUN_URLS["reexecute"], args=[run_id]))
 
         assert resp.status_code == 302
         assert run_id in resp.url
 
-    def test_retry_get_redirects(self, staff_client):
-        """GET should not retry, just redirect."""
+    def test_reexecute_get_redirects(self, staff_client):
+        """GET should not re-execute, just redirect."""
         run_id = "abc123"
-        resp = staff_client.get(reverse(RUN_URLS["retry"], args=[run_id]))
+        resp = staff_client.get(reverse(RUN_URLS["reexecute"], args=[run_id]))
 
         assert resp.status_code == 302
 

@@ -205,21 +205,21 @@ def test_cancel_run(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_retry_run(mock_cls):
+def test_reexecute_run(mock_cls):
     mock_client = MagicMock()
-    # First call: get_run fetches the failed run detail
+    # First call: get_run fetches the original run detail
     # Second call: submit_job triggers re-execution
     mock_client._execute.return_value = _make_run_detail_response(
-        run_id="failed-run-id", status="FAILURE"
+        run_id="original-run-id", status="SUCCESS"
     )
-    mock_client.submit_job_execution.return_value = "new-retry-id"
+    mock_client.submit_job_execution.return_value = "new-run-id"
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import retry_run
+    from django_dagster.client import reexecute_run
 
-    new_id = retry_run("failed-run-id")
+    new_id = reexecute_run("original-run-id")
 
-    assert new_id == "new-retry-id"
+    assert new_id == "new-run-id"
     # Should submit with same job name, parsed config, user tags only
     mock_client.submit_job_execution.assert_called_once_with(
         job_name="etl_job",
@@ -231,19 +231,19 @@ def test_retry_run(mock_cls):
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_retry_run_not_found(mock_cls):
+def test_reexecute_run_not_found(mock_cls):
     mock_client = MagicMock()
     mock_client._execute.return_value = GRAPHQL_RUN_NOT_FOUND_RESPONSE
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import retry_run
+    from django_dagster.client import reexecute_run
 
     with pytest.raises(ValueError, match="not found"):
-        retry_run("nonexistent")
+        reexecute_run("nonexistent")
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_retry_run_empty_config(mock_cls):
+def test_reexecute_run_empty_config(mock_cls):
     """When run config is empty YAML ({}), it should pass None."""
     mock_client = MagicMock()
     response = _make_run_detail_response()
@@ -253,9 +253,9 @@ def test_retry_run_empty_config(mock_cls):
     mock_client.submit_job_execution.return_value = "new-id"
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import retry_run
+    from django_dagster.client import reexecute_run
 
-    retry_run("some-id")
+    reexecute_run("some-id")
 
     mock_client.submit_job_execution.assert_called_once_with(
         job_name="etl_job",
