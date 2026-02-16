@@ -473,6 +473,38 @@ def test_get_run_events_with_cursor(
     assert variables["afterCursor"] == "some-cursor"
 
 
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_run_events_without_typename(mock_cls: MagicMock) -> None:
+    """Events missing __typename should not gain an event_type key."""
+    mock_client = MagicMock()
+    mock_client._execute.return_value = {
+        "logsForRun": {
+            "__typename": "EventConnection",
+            "events": [
+                {
+                    "message": "Plain event without typename",
+                    "timestamp": "1700000000000",
+                    "level": "INFO",
+                    "stepKey": None,
+                },
+            ],
+            "cursor": "1",
+            "hasMore": False,
+        },
+    }
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_run_events
+
+    result = get_run_events("abc123")
+
+    assert result is not None
+    event = result["events"][0]
+    assert "event_type" not in event
+    assert event["message"] == "Plain event without typename"
+    assert isinstance(event["timestamp"], datetime)
+
+
 def test_parse_timestamp_none() -> None:
     from django_dagster.client import _parse_timestamp
 
