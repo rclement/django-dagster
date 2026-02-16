@@ -17,15 +17,15 @@ A Django plugin for interacting with a [Dagster](https://dagster.io/) server thr
 
 | Jobs list | Job detail |
 |---|---|
-| ![Jobs list](docs/screenshots/jobs_list.png) | ![Job detail](docs/screenshots/job_detail.png) |
+| ![Jobs list](https://raw.githubusercontent.com/rclement/django-dagster/main/docs/screenshots/jobs_list.png) | ![Job detail](https://raw.githubusercontent.com/rclement/django-dagster/main/docs/screenshots/job_detail.png) |
 
 | Trigger job | Trigger success |
 |---|---|
-| ![Trigger job](docs/screenshots/job_trigger.png) | ![Trigger success](docs/screenshots/job_trigger_success.png) |
+| ![Trigger job](https://raw.githubusercontent.com/rclement/django-dagster/main/docs/screenshots/job_trigger.png) | ![Trigger success](https://raw.githubusercontent.com/rclement/django-dagster/main/docs/screenshots/job_trigger_success.png) |
 
 | Runs list | Run detail |
 |---|---|
-| ![Runs list](docs/screenshots/runs_list.png) | ![Run detail](docs/screenshots/run_detail.png) |
+| ![Runs list](https://raw.githubusercontent.com/rclement/django-dagster/main/docs/screenshots/runs_list.png) | ![Run detail](https://raw.githubusercontent.com/rclement/django-dagster/main/docs/screenshots/run_detail.png) |
 
 ## Requirements
 
