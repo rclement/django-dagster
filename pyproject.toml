@@ -31,6 +31,12 @@ dependencies = [
     "dagster-graphql",
 ]
 
+[project.urls]
+Homepage = "https://github.com/rclement/django-dagster"
+Repository = "https://github.com/rclement/django-dagster"
+Changelog = "https://github.com/rclement/django-dagster/blob/main/CHANGELOG.md"
+Issues = "https://github.com/rclement/django-dagster/issues"
+
 [dependency-groups]
 dev = [
     "pytest==9.0.2",
