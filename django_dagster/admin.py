@@ -75,7 +75,8 @@ class _DagsterAdminBase(admin.ModelAdmin):
 @admin.register(DagsterJob)
 class DagsterJobAdmin(_DagsterAdminBase):
     def has_add_permission(self, request):
-        return request.user.is_active and request.user.is_staff
+        # No generic "Add" link on the admin index; trigger is per-job.
+        return False
 
     def get_urls(self):
         info = (self.model._meta.app_label, self.model._meta.model_name)
@@ -86,9 +87,9 @@ class DagsterJobAdmin(_DagsterAdminBase):
                 name="%s_%s_changelist" % info,
             ),
             path(
-                "add/",
+                "<str:job_name>/trigger/",
                 self.admin_site.admin_view(self.trigger_view),
-                name="%s_%s_add" % info,
+                name="%s_%s_trigger" % info,
             ),
             path(
                 "<str:job_name>/change/",
@@ -183,18 +184,9 @@ class DagsterJobAdmin(_DagsterAdminBase):
 
     # -- add (trigger) -------------------------------------------------------
 
-    def trigger_view(self, request):
+    def trigger_view(self, request, job_name):
         if request.method == "POST":
-            job_name = request.POST.get("job_name", "").strip()
             config_json = request.POST.get("run_config", "").strip()
-
-            if not job_name:
-                self.message_user(
-                    request, "Job name is required", messages.ERROR
-                )
-                return self._render_trigger_form(
-                    request, run_config=config_json,
-                )
 
             run_config = None
             if config_json:
@@ -229,22 +221,24 @@ class DagsterJobAdmin(_DagsterAdminBase):
                     request, job_name=job_name, run_config=config_json,
                 )
 
-        return self._render_trigger_form(
-            request, job_name=request.GET.get("job", ""),
-        )
-
-    def _render_trigger_form(self, request, job_name="", run_config=""):
-        jobs = None
+        # GET: fetch default run config
+        default_config = "{}"
         try:
-            jobs = client.get_jobs()
+            config = client.get_job_default_run_config(job_name)
+            if config:
+                default_config = json.dumps(config, indent=2)
         except Exception:
             pass
 
+        return self._render_trigger_form(
+            request, job_name=job_name, run_config=default_config,
+        )
+
+    def _render_trigger_form(self, request, job_name, run_config=""):
         context = self._build_context(request, {
-            "title": "Trigger Job",
+            "title": "Trigger Dagster Job Run",
             "job_name": job_name,
             "run_config": run_config,
-            "jobs": jobs,
         })
         return TemplateResponse(
             request, "django_dagster/trigger_job.html", context

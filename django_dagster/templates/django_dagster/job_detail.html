@@ -10,8 +10,7 @@
 
 {% block dagster_content %}
 <div class="submit-row">
-    <form method="get" action="{% url 'admin:django_dagster_dagsterjob_add' %}" style="display:inline;">
-        <input type="hidden" name="job" value="{{ job.name }}">
+    <form method="get" action="{% url 'admin:django_dagster_dagsterjob_trigger' job.name %}" style="display:inline;">
         <input type="submit" value="{% trans 'Trigger New Run' %}">
     </form>
     <form method="get" action="{% url 'admin:django_dagster_dagsterrun_changelist' %}" style="display:inline;">

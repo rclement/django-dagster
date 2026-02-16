@@ -322,6 +322,65 @@ def test_get_run_events_python_error(mock_cls):
         get_run_events("some-id")
 
 
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_job_default_run_config(mock_cls):
+    mock_client = MagicMock()
+    # First call: get_jobs
+    # Second call: runConfigSchemaOrError
+    mock_client._execute.side_effect = [
+        GRAPHQL_REPOSITORIES_RESPONSE,
+        {
+            "runConfigSchemaOrError": {
+                "rootDefaultYaml": "ops:\n  my_op:\n    config:\n      param: value\n",
+            }
+        },
+    ]
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_job_default_run_config
+
+    config = get_job_default_run_config("etl_job")
+
+    assert config == {"ops": {"my_op": {"config": {"param": "value"}}}}
+    # Verify the selector was built correctly
+    schema_call = mock_client._execute.call_args_list[1]
+    variables = schema_call[0][1]
+    assert variables["selector"] == {
+        "pipelineName": "etl_job",
+        "repositoryName": "my_repo",
+        "repositoryLocationName": "my_location",
+    }
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_job_default_run_config_empty(mock_cls):
+    mock_client = MagicMock()
+    mock_client._execute.side_effect = [
+        GRAPHQL_REPOSITORIES_RESPONSE,
+        {"runConfigSchemaOrError": {"rootDefaultYaml": "{}\n"}},
+    ]
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_job_default_run_config
+
+    config = get_job_default_run_config("etl_job")
+
+    assert config == {}
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_job_default_run_config_unknown_job(mock_cls):
+    mock_client = MagicMock()
+    mock_client._execute.return_value = GRAPHQL_REPOSITORIES_RESPONSE
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_job_default_run_config
+
+    config = get_job_default_run_config("nonexistent_job")
+
+    assert config == {}
+
+
 def test_parse_timestamp_none():
     from django_dagster.client import _parse_timestamp
 

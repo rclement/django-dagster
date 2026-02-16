@@ -200,6 +200,45 @@ def get_run_events(run_id, cursor=None, limit=1000):
     }
 
 
+def get_job_default_run_config(job_name):
+    """Fetch the default run config for a job from the Dagster API.
+
+    Returns a dict (possibly empty) with the default config values.
+    """
+    # Find the job's repository info
+    jobs = get_jobs()
+    job = next((j for j in jobs if j["name"] == job_name), None)
+    if job is None:
+        return {}
+
+    client = get_client()
+    result = client._execute(
+        """
+        query($selector: PipelineSelector!) {
+            runConfigSchemaOrError(selector: $selector) {
+                ... on RunConfigSchema {
+                    rootDefaultYaml
+                }
+            }
+        }
+        """,
+        {
+            "selector": {
+                "pipelineName": job_name,
+                "repositoryName": job["repository"],
+                "repositoryLocationName": job["location"],
+            }
+        },
+    )
+    schema = result.get("runConfigSchemaOrError", {})
+    raw_yaml = schema.get("rootDefaultYaml", "")
+    if raw_yaml:
+        parsed = yaml.safe_load(raw_yaml)
+        if isinstance(parsed, dict) and parsed:
+            return parsed
+    return {}
+
+
 def submit_job(
     job_name,
     repository_location_name=None,

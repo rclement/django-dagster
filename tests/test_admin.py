@@ -36,7 +36,7 @@ def test_run_admin_class():
 
 JOB_URLS = {
     "changelist": "admin:django_dagster_dagsterjob_changelist",
-    "add": "admin:django_dagster_dagsterjob_add",
+    "trigger": "admin:django_dagster_dagsterjob_trigger",
     "change": "admin:django_dagster_dagsterjob_change",
 }
 
@@ -51,7 +51,7 @@ RUN_URLS = {
 @pytest.mark.django_db
 def test_urls_resolve():
     assert reverse(JOB_URLS["changelist"])
-    assert reverse(JOB_URLS["add"])
+    assert reverse(JOB_URLS["trigger"], args=["etl_job"])
     assert reverse(JOB_URLS["change"], args=["etl_job"])
     assert reverse(RUN_URLS["changelist"])
     assert reverse(RUN_URLS["change"], args=["abc123"])
@@ -69,8 +69,8 @@ class TestAuthRequired:
     def test_anonymous_job_changelist(self, client):
         assert client.get(reverse(JOB_URLS["changelist"])).status_code == 302
 
-    def test_anonymous_job_add(self, client):
-        assert client.get(reverse(JOB_URLS["add"])).status_code == 302
+    def test_anonymous_job_trigger(self, client):
+        assert client.get(reverse(JOB_URLS["trigger"], args=["etl_job"])).status_code == 302
 
     def test_anonymous_run_changelist(self, client):
         assert client.get(reverse(RUN_URLS["changelist"])).status_code == 302
@@ -317,35 +317,53 @@ class TestJobDetailView:
 
 @pytest.mark.django_db
 class TestTriggerJobView:
-    @patch("django_dagster.admin.client.get_jobs")
-    def test_get_renders_form(self, mock_get_jobs, staff_client):
-        mock_get_jobs.return_value = [
-            {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
-        ]
+    def _trigger_url(self, job_name="etl_job"):
+        return reverse(JOB_URLS["trigger"], args=[job_name])
 
-        resp = staff_client.get(reverse(JOB_URLS["add"]))
+    @patch("django_dagster.admin.client.get_job_default_run_config")
+    def test_get_renders_form(self, mock_default_config, staff_client):
+        mock_default_config.return_value = {}
+
+        resp = staff_client.get(self._trigger_url())
 
         assert resp.status_code == 200
         assert b"etl_job" in resp.content
+        assert b"Trigger Dagster Job Run" in resp.content
 
-    @patch("django_dagster.admin.client.get_jobs")
-    def test_get_prefills_job_name(self, mock_get_jobs, staff_client):
-        mock_get_jobs.return_value = [
-            {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
-        ]
+    @patch("django_dagster.admin.client.get_job_default_run_config")
+    def test_get_prefills_default_run_config(self, mock_default_config, staff_client):
+        mock_default_config.return_value = {"ops": {"my_op": {"config": {"x": 1}}}}
 
-        resp = staff_client.get(reverse(JOB_URLS["add"]) + "?job=etl_job")
+        resp = staff_client.get(self._trigger_url())
 
         assert resp.status_code == 200
-        assert b"selected" in resp.content
+        assert resp.context["run_config"] == '{\n  "ops": {\n    "my_op": {\n      "config": {\n        "x": 1\n      }\n    }\n  }\n}'
+        mock_default_config.assert_called_once_with("etl_job")
+
+    @patch("django_dagster.admin.client.get_job_default_run_config")
+    def test_get_empty_default_shows_empty_json(self, mock_default_config, staff_client):
+        mock_default_config.return_value = {}
+
+        resp = staff_client.get(self._trigger_url())
+
+        assert resp.context["run_config"] == "{}"
+
+    @patch("django_dagster.admin.client.get_job_default_run_config")
+    def test_get_default_config_error_falls_back(self, mock_default_config, staff_client):
+        mock_default_config.side_effect = Exception("API error")
+
+        resp = staff_client.get(self._trigger_url())
+
+        assert resp.status_code == 200
+        assert resp.context["run_config"] == "{}"
 
     @patch("django_dagster.admin.client.submit_job")
     def test_post_triggers_job(self, mock_submit, staff_client):
         mock_submit.return_value = "new-run-123"
 
         resp = staff_client.post(
-            reverse(JOB_URLS["add"]),
-            {"job_name": "etl_job", "run_config": ""},
+            self._trigger_url(),
+            {"run_config": ""},
         )
 
         assert resp.status_code == 302
@@ -357,8 +375,8 @@ class TestTriggerJobView:
         mock_submit.return_value = "new-run-123"
 
         resp = staff_client.post(
-            reverse(JOB_URLS["add"]),
-            {"job_name": "etl_job", "run_config": ""},
+            self._trigger_url(),
+            {"run_config": ""},
         )
 
         expected = reverse(RUN_URLS["change"], args=["new-run-123"])
@@ -369,9 +387,8 @@ class TestTriggerJobView:
         mock_submit.return_value = "new-run-456"
 
         resp = staff_client.post(
-            reverse(JOB_URLS["add"]),
+            self._trigger_url(),
             {
-                "job_name": "etl_job",
                 "run_config": '{"ops": {"x": {"config": {"k": 1}}}}',
             },
         )
@@ -382,43 +399,24 @@ class TestTriggerJobView:
             run_config={"ops": {"x": {"config": {"k": 1}}}},
         )
 
-    @patch("django_dagster.admin.client.get_jobs")
-    def test_post_invalid_json(self, mock_get_jobs, staff_client):
-        mock_get_jobs.return_value = []
-
+    def test_post_invalid_json(self, staff_client):
         resp = staff_client.post(
-            reverse(JOB_URLS["add"]),
-            {"job_name": "etl_job", "run_config": "{bad json"},
+            self._trigger_url(),
+            {"run_config": "{bad json"},
         )
 
         assert resp.status_code == 200
         assert b"Invalid JSON config" in resp.content
 
-    @patch("django_dagster.admin.client.get_jobs")
-    def test_post_missing_job_name(self, mock_get_jobs, staff_client):
-        mock_get_jobs.return_value = []
-
-        resp = staff_client.post(
-            reverse(JOB_URLS["add"]),
-            {"job_name": "", "run_config": ""},
-        )
-
-        assert resp.status_code == 200
-        assert b"Job name is required" in resp.content
-
-    @patch("django_dagster.admin.client.get_jobs")
     @patch("django_dagster.admin.client.submit_job")
     def test_post_dagster_error_preserves_form(
-        self, mock_submit, mock_get_jobs, staff_client
+        self, mock_submit, staff_client
     ):
         mock_submit.side_effect = Exception("JobNotFoundError")
-        mock_get_jobs.return_value = [
-            {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
-        ]
 
         resp = staff_client.post(
-            reverse(JOB_URLS["add"]),
-            {"job_name": "etl_job", "run_config": '{"key": "val"}'},
+            self._trigger_url(),
+            {"run_config": '{"key": "val"}'},
         )
 
         assert resp.status_code == 200
@@ -849,9 +847,8 @@ class TestAdminIndex:
         assert b"Jobs" in resp.content
         assert b"Runs" in resp.content
 
-    def test_jobs_has_add_link(self, staff_client):
-        """The Jobs entry should have an Add (+) link in the admin index."""
+    def test_jobs_no_add_link(self, staff_client):
+        """Jobs should not have an Add link on the index (trigger is per-job)."""
         resp = staff_client.get(reverse("admin:index"))
 
-        add_url = reverse(JOB_URLS["add"])
-        assert add_url.encode() in resp.content
+        assert b"/trigger/" not in resp.content

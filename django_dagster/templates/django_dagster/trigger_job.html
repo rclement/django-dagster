@@ -5,30 +5,15 @@
 
 {% block dagster_breadcrumbs %}
 &rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_changelist' %}">{% trans 'Jobs' %}</a>
-&rsaquo; {% trans 'Trigger Job' %}
+&rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_change' job_name %}">{{ job_name }}</a>
+&rsaquo; {% trans 'Trigger' %}
 {% endblock %}
 
 {% block dagster_content %}
+<h2>{{ job_name }}</h2>
+
 <form method="post">
     {% csrf_token %}
-
-    <div class="form-row">
-        <label for="id_job_name">Job name:</label>
-        {% if jobs %}
-        <select id="id_job_name" name="job_name" required>
-            <option value="">---------</option>
-            {% for job in jobs %}
-            <option value="{{ job.name }}" {% if job.name == job_name %}selected{% endif %}>
-                {{ job.name }} ({{ job.repository }})
-            </option>
-            {% endfor %}
-        </select>
-        {% else %}
-        <input type="text" id="id_job_name" name="job_name" value="{{ job_name|default:'' }}" required
-               style="width: 300px;" placeholder="my_job_name">
-        <p class="help">Could not fetch job list from Dagster. Enter the job name manually.</p>
-        {% endif %}
-    </div>
 
     <div class="form-row" style="margin-top: 15px;">
         <label for="id_run_config">Run config (JSON, optional):</label>
