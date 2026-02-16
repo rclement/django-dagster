@@ -1015,6 +1015,76 @@ class TestPermissionsEnabled:
         resp = superuser_client.post(reverse(RUN_URLS["cancel"], args=["abc123"]))
         assert resp.status_code == 302
 
+    # -- Dagster UI links hidden without access_dagster_ui perm ---------------
+
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_viewer_job_list_no_dagster_ui_links(self, mock_get_jobs, viewer_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
+        ]
+        resp = viewer_client.get(reverse(JOB_URLS["changelist"]))
+        assert resp.status_code == 200
+        assert b"Dagster UI" not in resp.content
+        assert "↗".encode() not in resp.content
+
+    @patch("django_dagster.admin.client.get_runs")
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_viewer_job_detail_no_dagster_ui_links(self, mock_get_jobs, mock_get_runs, viewer_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "ETL", "repository": "r", "location": "l"},
+        ]
+        mock_get_runs.return_value = []
+        resp = viewer_client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
+        assert resp.status_code == 200
+        assert b"View in Dagster UI" not in resp.content
+
+    @patch("django_dagster.admin.client.get_jobs")
+    @patch("django_dagster.admin.client.get_runs")
+    def test_viewer_run_list_no_dagster_ui_links(self, mock_get_runs, mock_get_jobs, viewer_client):
+        mock_get_jobs.return_value = []
+        mock_get_runs.return_value = [
+            {"runId": "abc123", "jobName": "etl_job", "status": "SUCCESS",
+             "startTime": None, "endTime": None, "tags": []},
+        ]
+        resp = viewer_client.get(reverse(RUN_URLS["changelist"]))
+        assert resp.status_code == 200
+        assert b"Dagster UI" not in resp.content
+
+    @patch("django_dagster.admin.client.get_runs")
+    @patch("django_dagster.admin.client.get_run")
+    def test_viewer_run_detail_no_dagster_ui_links(self, mock_get_run, mock_get_runs, viewer_client):
+        mock_get_run.return_value = {
+            "runId": "abc123", "jobName": "etl_job", "status": "SUCCESS",
+            "startTime": None, "endTime": None, "runConfigYaml": "",
+            "tags": [], "stats": None,
+        }
+        mock_get_runs.return_value = []
+        resp = viewer_client.get(reverse(RUN_URLS["change"], args=["abc123"]))
+        assert resp.status_code == 200
+        assert b"View in Dagster UI" not in resp.content
+
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_full_perm_sees_dagster_ui_links(self, mock_get_jobs, full_perm_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
+        ]
+        resp = full_perm_client.get(reverse(JOB_URLS["changelist"]))
+        assert resp.status_code == 200
+        assert b"Dagster UI" in resp.content
+
+    @patch("django_dagster.admin.client.get_runs")
+    @patch("django_dagster.admin.client.get_run")
+    def test_full_perm_sees_dagster_ui_links_run_detail(self, mock_get_run, mock_get_runs, full_perm_client):
+        mock_get_run.return_value = {
+            "runId": "abc123", "jobName": "etl_job", "status": "SUCCESS",
+            "startTime": None, "endTime": None, "runConfigYaml": "",
+            "tags": [], "stats": None,
+        }
+        mock_get_runs.return_value = []
+        resp = full_perm_client.get(reverse(RUN_URLS["change"], args=["abc123"]))
+        assert resp.status_code == 200
+        assert b"View in Dagster UI" in resp.content
+
     # -- Admin index ----------------------------------------------------------
 
     def test_viewer_sees_dagster_in_index(self, viewer_client):

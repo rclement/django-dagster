@@ -45,15 +45,24 @@ class _DagsterAdminBase(admin.ModelAdmin):
             return HttpResponseForbidden()
         return None
 
+    def _can_access_dagster_ui(self, request):
+        """Check whether the current user may see Dagster UI links."""
+        if not self._permissions_enabled():
+            return True
+        return request.user.has_perm("django_dagster.access_dagster_ui")
+
     def _build_context(self, request, extra=None):
         dagster_url = getattr(settings, "DAGSTER_URL", None)
+        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+            request,
+        )
         context = {
             **self.admin_site.each_context(request),
             "opts": self.model._meta,
             "app_label": self.model._meta.app_label,
-            "dagster_url": dagster_url,
+            "dagster_url": dagster_url if show_dagster_ui else None,
         }
-        if dagster_url:
+        if show_dagster_ui:
             base = dagster_url.rstrip("/")
             context["dagster_ui_jobs_url"] = f"{base}/jobs"
             context["dagster_ui_runs_url"] = f"{base}/runs"
@@ -137,7 +146,10 @@ class DagsterJobAdmin(_DagsterAdminBase):
             )
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
-        if jobs is not None and dagster_url:
+        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+            request,
+        )
+        if jobs is not None and show_dagster_ui:
             for job in jobs:
                 job["dagster_ui_url"] = self._dagster_job_ui_url(
                     dagster_url, job,
@@ -187,15 +199,20 @@ class DagsterJobAdmin(_DagsterAdminBase):
             pass
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
-        dagster_job_ui_url = self._dagster_job_ui_url(dagster_url, job)
+        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+            request,
+        )
+
+        dagster_job_ui_url = None
         dagster_location_ui_url = None
-        if dagster_url:
+        if show_dagster_ui:
+            dagster_job_ui_url = self._dagster_job_ui_url(dagster_url, job)
             base = dagster_url.rstrip("/")
             dagster_location_ui_url = (
                 f"{base}/locations/{job['location']}"
             )
 
-        if recent_runs is not None and dagster_url:
+        if recent_runs is not None and show_dagster_ui:
             for run in recent_runs:
                 run["dagster_ui_url"] = self._dagster_run_ui_url(
                     dagster_url, run["runId"],
@@ -361,7 +378,10 @@ class DagsterRunAdmin(_DagsterAdminBase):
                 )
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
-        if runs is not None and dagster_url:
+        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+            request,
+        )
+        if runs is not None and show_dagster_ui:
             for run in runs:
                 run["dagster_ui_url"] = self._dagster_run_ui_url(
                     dagster_url, run["runId"],
@@ -456,11 +476,17 @@ class DagsterRunAdmin(_DagsterAdminBase):
             pass
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
-        dagster_run_ui_url = self._dagster_run_ui_url(dagster_url, object_id)
+        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+            request,
+        )
 
-        # Look up the job to build its Dagster UI URL
+        dagster_run_ui_url = None
         dagster_job_ui_url = None
-        if dagster_url:
+        if show_dagster_ui:
+            dagster_run_ui_url = self._dagster_run_ui_url(
+                dagster_url, object_id,
+            )
+            # Look up the job to build its Dagster UI URL
             try:
                 jobs = client.get_jobs()
                 job = next(
@@ -473,7 +499,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
             except Exception:
                 pass
 
-        if related_runs is not None and dagster_url:
+        if related_runs is not None and show_dagster_ui:
             for r in related_runs:
                 r["dagster_ui_url"] = self._dagster_run_ui_url(
                     dagster_url, r["runId"],
