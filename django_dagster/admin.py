@@ -246,6 +246,14 @@ class DagsterRunAdmin(_DagsterAdminBase):
 
     # -- changelist ----------------------------------------------------------
 
+    SORT_KEYS = {
+        "run_id": "runId",
+        "job": "jobName",
+        "status": "status",
+        "started": "startTime",
+        "ended": "endTime",
+    }
+
     def run_list_view(self, request):
         job_name = request.GET.get("job")
         status = request.GET.get("status")
@@ -259,7 +267,19 @@ class DagsterRunAdmin(_DagsterAdminBase):
                 request, f"Failed to connect to Dagster: {e}", messages.ERROR
             )
 
-        # Fetch job list for the filter dropdown
+        # Sort runs client-side
+        sort = request.GET.get("o")
+        if runs is not None and sort:
+            raw = sort.lstrip("-")
+            key = self.SORT_KEYS.get(raw)
+            if key:
+                runs = sorted(
+                    runs,
+                    key=lambda r: r.get(key) or "",
+                    reverse=sort.startswith("-"),
+                )
+
+        # Fetch job list for the filter sidebar
         jobs = None
         try:
             jobs = client.get_jobs()
@@ -272,6 +292,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
             "jobs": jobs,
             "current_job": job_name,
             "current_status": status,
+            "current_sort": sort,
             "statuses": [
                 "QUEUED",
                 "NOT_STARTED",
