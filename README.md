@@ -1,5 +1,10 @@
 # django-dagster
 
+[![PyPI](https://img.shields.io/pypi/v/django-dagster.svg)](https://pypi.org/project/django-dagster/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/django-dagster?logo=python&logoColor=white)](https://pypi.org/project/django-dagster/)
+[![CI/CD](https://github.com/rclement/django-dagster/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/rclement/django-dagster/actions/workflows/ci-cd.yml)
+[![License](https://img.shields.io/github/license/rclement/django-dagster)](https://github.com/rclement/django-dagster/blob/main/LICENSE)
+
 A Django plugin for interacting with a [Dagster](https://dagster.io/) server through the Django admin interface.
 
 ## Features
