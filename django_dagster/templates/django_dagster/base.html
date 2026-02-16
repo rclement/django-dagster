@@ -45,7 +45,14 @@
 <div id="content-main">
     {% if dagster_url %}
     <div class="module" style="padding:8px 12px;margin-bottom:15px;font-size:12px;color:var(--body-quiet-color);">
-        {% trans 'Dagster instance:' %} <strong>{{ dagster_url }}</strong>
+        {% trans 'Dagster instance:' %} <strong><a href="{{ dagster_url }}" target="_blank" rel="noopener" style="color:inherit;">{{ dagster_url }}</a></strong>
+        {% if dagster_ui_jobs_url or dagster_ui_runs_url or dagster_ui_locations_url %}
+        <span style="margin-left:12px;">
+            {% if dagster_ui_jobs_url %}<a href="{{ dagster_ui_jobs_url }}" target="_blank" rel="noopener" style="margin-right:8px;">{% trans 'Jobs' %} &#x2197;</a>{% endif %}
+            {% if dagster_ui_runs_url %}<a href="{{ dagster_ui_runs_url }}" target="_blank" rel="noopener" style="margin-right:8px;">{% trans 'Runs' %} &#x2197;</a>{% endif %}
+            {% if dagster_ui_locations_url %}<a href="{{ dagster_ui_locations_url }}" target="_blank" rel="noopener">{% trans 'Code Locations' %} &#x2197;</a>{% endif %}
+        </span>
+        {% endif %}
     </div>
     {% endif %}
     {% block dagster_content %}{% endblock %}

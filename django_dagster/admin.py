@@ -31,15 +31,40 @@ class _DagsterAdminBase(admin.ModelAdmin):
         return request.user.is_active and request.user.is_staff
 
     def _build_context(self, request, extra=None):
+        dagster_url = getattr(settings, "DAGSTER_URL", None)
         context = {
             **self.admin_site.each_context(request),
             "opts": self.model._meta,
             "app_label": self.model._meta.app_label,
-            "dagster_url": getattr(settings, "DAGSTER_URL", None),
+            "dagster_url": dagster_url,
         }
+        if dagster_url:
+            base = dagster_url.rstrip("/")
+            context["dagster_ui_jobs_url"] = f"{base}/jobs"
+            context["dagster_ui_runs_url"] = f"{base}/runs"
+            context["dagster_ui_locations_url"] = f"{base}/locations"
         if extra:
             context.update(extra)
         return context
+
+    @staticmethod
+    def _dagster_job_ui_url(dagster_url, job):
+        """Build the Dagster UI URL for a specific job."""
+        if not dagster_url:
+            return None
+        base = dagster_url.rstrip("/")
+        repo = job.get("repository", "")
+        location = job.get("location", "")
+        name = job.get("name", "")
+        return f"{base}/locations/{repo}@{location}/jobs/{name}"
+
+    @staticmethod
+    def _dagster_run_ui_url(dagster_url, run_id):
+        """Build the Dagster UI URL for a specific run."""
+        if not dagster_url:
+            return None
+        base = dagster_url.rstrip("/")
+        return f"{base}/runs/{run_id}"
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +116,13 @@ class DagsterJobAdmin(_DagsterAdminBase):
                 reverse=sort.startswith("-"),
             )
 
+        dagster_url = getattr(settings, "DAGSTER_URL", None)
+        if jobs is not None and dagster_url:
+            for job in jobs:
+                job["dagster_ui_url"] = self._dagster_job_ui_url(
+                    dagster_url, job,
+                )
+
         context = self._build_context(request, {
             "title": "Dagster Jobs",
             "jobs": jobs,
@@ -130,10 +162,20 @@ class DagsterJobAdmin(_DagsterAdminBase):
         except Exception:
             pass
 
+        dagster_url = getattr(settings, "DAGSTER_URL", None)
+        dagster_job_ui_url = self._dagster_job_ui_url(dagster_url, job)
+
+        if recent_runs is not None and dagster_url:
+            for run in recent_runs:
+                run["dagster_ui_url"] = self._dagster_run_ui_url(
+                    dagster_url, run["runId"],
+                )
+
         context = self._build_context(request, {
             "title": "View Dagster Job",
             "job": job,
             "recent_runs": recent_runs,
+            "dagster_job_ui_url": dagster_job_ui_url,
         })
         return TemplateResponse(
             request, "django_dagster/job_detail.html", context
@@ -279,6 +321,13 @@ class DagsterRunAdmin(_DagsterAdminBase):
                     reverse=sort.startswith("-"),
                 )
 
+        dagster_url = getattr(settings, "DAGSTER_URL", None)
+        if runs is not None and dagster_url:
+            for run in runs:
+                run["dagster_ui_url"] = self._dagster_run_ui_url(
+                    dagster_url, run["runId"],
+                )
+
         # Fetch job list for the filter sidebar
         jobs = None
         try:
@@ -341,12 +390,22 @@ class DagsterRunAdmin(_DagsterAdminBase):
         except Exception:
             pass
 
+        dagster_url = getattr(settings, "DAGSTER_URL", None)
+        dagster_run_ui_url = self._dagster_run_ui_url(dagster_url, object_id)
+
+        if related_runs is not None and dagster_url:
+            for r in related_runs:
+                r["dagster_ui_url"] = self._dagster_run_ui_url(
+                    dagster_url, r["runId"],
+                )
+
         context = self._build_context(request, {
             "title": f"Run {object_id}",
             "run": run,
             "can_cancel": can_cancel,
             "can_retry": can_retry,
             "related_runs": related_runs,
+            "dagster_run_ui_url": dagster_run_ui_url,
         })
         return TemplateResponse(
             request, "django_dagster/run_detail.html", context

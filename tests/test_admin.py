@@ -174,6 +174,23 @@ class TestJobListView:
         assert resp.status_code == 200
         assert b"http://localhost:3000" in resp.content
 
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_dagster_ui_links_shown(self, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "", "repository": "repo", "location": "loc"},
+        ]
+
+        resp = staff_client.get(reverse(JOB_URLS["changelist"]))
+
+        assert resp.status_code == 200
+        content = resp.content.decode()
+        # Navigation links in the info bar
+        assert "http://localhost:3000/jobs" in content
+        assert "http://localhost:3000/runs" in content
+        assert "http://localhost:3000/locations" in content
+        # Per-job Dagster UI link
+        assert "http://localhost:3000/locations/repo@loc/jobs/etl_job" in content
+
 
 # ---------------------------------------------------------------------------
 # Job detail (change view)
@@ -255,6 +272,19 @@ class TestJobDetailView:
 
         assert b"fieldset" in resp.content
         assert b"submit-row" in resp.content
+
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_dagster_ui_link_shown(self, mock_get_jobs, mock_get_runs, staff_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "", "repository": "repo", "location": "loc"},
+        ]
+        mock_get_runs.return_value = []
+
+        resp = staff_client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
+
+        assert resp.status_code == 200
+        assert b"http://localhost:3000/locations/repo@loc/jobs/etl_job" in resp.content
+        assert b"View in Dagster UI" in resp.content
 
     @patch("django_dagster.admin.client.get_jobs")
     def test_recent_runs_shown(self, mock_get_jobs, mock_get_runs, staff_client):
@@ -473,7 +503,27 @@ class TestRunListView:
         assert change_url.encode() in resp.content
 
     @patch("django_dagster.admin.client.get_runs")
-    def test_job_filter_is_dropdown(self, mock_get_runs, mock_get_jobs, staff_client):
+    def test_dagster_ui_links_shown(self, mock_get_runs, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = []
+        run_id = "abc12345-def0-1234-5678-abcdef012345"
+        mock_get_runs.return_value = [
+            {
+                "runId": run_id,
+                "jobName": "etl_job",
+                "status": "SUCCESS",
+                "startTime": datetime(2023, 11, 14, tzinfo=timezone.utc),
+                "endTime": None,
+                "tags": [],
+            },
+        ]
+
+        resp = staff_client.get(reverse(RUN_URLS["changelist"]))
+
+        assert resp.status_code == 200
+        assert f"http://localhost:3000/runs/{run_id}".encode() in resp.content
+
+    @patch("django_dagster.admin.client.get_runs")
+    def test_job_filter_sidebar(self, mock_get_runs, mock_get_jobs, staff_client):
         mock_get_jobs.return_value = [
             {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
             {"name": "report_job", "description": "", "repository": "r", "location": "l"},
@@ -483,8 +533,8 @@ class TestRunListView:
         resp = staff_client.get(reverse(RUN_URLS["changelist"]))
 
         assert resp.status_code == 200
-        # Job filter should be a <select> with job names as options
-        assert b'<select id="id_job"' in resp.content
+        # Job filter sidebar should list job names
+        assert b"By job" in resp.content
         assert b"etl_job" in resp.content
         assert b"report_job" in resp.content
 
@@ -536,6 +586,18 @@ class TestRunDetailView:
         assert b"submit-row" in resp.content
         # "All Runs" is a proper button
         assert b"All Runs" in resp.content
+
+    @patch("django_dagster.admin.client.get_run")
+    def test_dagster_ui_link_shown(self, mock_get_run, mock_get_runs, staff_client):
+        mock_get_run.return_value = self._make_run()
+        mock_get_runs.return_value = []
+
+        run_id = "abc12345-def0-1234-5678-abcdef012345"
+        resp = staff_client.get(reverse(RUN_URLS["change"], args=[run_id]))
+
+        assert resp.status_code == 200
+        assert f"http://localhost:3000/runs/{run_id}".encode() in resp.content
+        assert b"View in Dagster UI" in resp.content
 
     @patch("django_dagster.admin.client.get_run")
     def test_cancel_button_shown_for_running(self, mock_get_run, mock_get_runs, staff_client):

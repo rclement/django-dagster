@@ -38,6 +38,9 @@
                 </th>
                 {% endif %}
                 <th scope="col"><div class="text">{% trans 'Description' %}</div></th>
+                {% if dagster_url %}
+                <th scope="col"><div class="text">{% trans 'Dagster UI' %}</div></th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -47,6 +50,9 @@
                     <a href="{% url 'admin:django_dagster_dagsterjob_change' job.name %}">{{ job.name }}</a>
                 </th>
                 <td>{{ job.description|default:"—" }}</td>
+                {% if dagster_url %}
+                <td>{% if job.dagster_ui_url %}<a href="{{ job.dagster_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}">&#x2197;</a>{% endif %}</td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
