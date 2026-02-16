@@ -8,6 +8,14 @@ from django.urls import reverse
 from django_dagster.admin import DagsterJobAdmin, DagsterRunAdmin
 from django_dagster.models import DagsterJob, DagsterRun
 
+PERMS_ENABLED = pytest.mark.usefixtures()  # placeholder, actual override below
+
+
+@pytest.fixture
+def perms_enabled(settings):
+    """Enable DAGSTER_PERMISSIONS_ENABLED for the test."""
+    settings.DAGSTER_PERMISSIONS_ENABLED = True
+
 # ---------------------------------------------------------------------------
 # Admin registration
 # ---------------------------------------------------------------------------
@@ -852,3 +860,199 @@ class TestAdminIndex:
         resp = staff_client.get(reverse("admin:index"))
 
         assert b"/trigger/" not in resp.content
+
+
+# ---------------------------------------------------------------------------
+# Permissions (DAGSTER_PERMISSIONS_ENABLED=True)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("perms_enabled")
+class TestPermissionsEnabled:
+    """When DAGSTER_PERMISSIONS_ENABLED=True, Django permissions are enforced."""
+
+    # -- No permissions → no access ------------------------------------------
+
+    def test_staff_no_perms_job_list_forbidden(self, client, db):
+        from django.contrib.auth.models import User
+
+        User.objects.create_user("noperms", password="pw", is_staff=True)
+        client.login(username="noperms", password="pw")
+        resp = client.get(reverse(JOB_URLS["changelist"]))
+        assert resp.status_code == 403
+
+    def test_staff_no_perms_run_list_forbidden(self, client, db):
+        from django.contrib.auth.models import User
+
+        User.objects.create_user("noperms", password="pw", is_staff=True)
+        client.login(username="noperms", password="pw")
+        resp = client.get(reverse(RUN_URLS["changelist"]))
+        assert resp.status_code == 403
+
+    # -- View-only: can see but cannot trigger/cancel/reexecute ---------------
+
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_viewer_can_see_job_list(self, mock_get_jobs, viewer_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
+        ]
+        resp = viewer_client.get(reverse(JOB_URLS["changelist"]))
+        assert resp.status_code == 200
+        assert b"etl_job" in resp.content
+
+    @patch("django_dagster.admin.client.get_runs")
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_viewer_can_see_job_detail(self, mock_get_jobs, mock_get_runs, viewer_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "ETL", "repository": "r", "location": "l"},
+        ]
+        mock_get_runs.return_value = []
+        resp = viewer_client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
+        assert resp.status_code == 200
+        assert b"Trigger New Run" not in resp.content
+
+    @patch("django_dagster.admin.client.get_job_default_run_config")
+    def test_viewer_cannot_trigger_job(self, mock_cfg, viewer_client):
+        resp = viewer_client.get(reverse(JOB_URLS["trigger"], args=["etl_job"]))
+        assert resp.status_code == 403
+
+    def test_viewer_cannot_trigger_job_post(self, viewer_client):
+        resp = viewer_client.post(
+            reverse(JOB_URLS["trigger"], args=["etl_job"]),
+            {"run_config": ""},
+        )
+        assert resp.status_code == 403
+
+    @patch("django_dagster.admin.client.get_jobs")
+    @patch("django_dagster.admin.client.get_runs")
+    def test_viewer_can_see_run_list(self, mock_get_runs, mock_get_jobs, viewer_client):
+        mock_get_jobs.return_value = []
+        mock_get_runs.return_value = []
+        resp = viewer_client.get(reverse(RUN_URLS["changelist"]))
+        assert resp.status_code == 200
+
+    @patch("django_dagster.admin.client.get_runs")
+    @patch("django_dagster.admin.client.get_run")
+    def test_viewer_sees_no_cancel_button(self, mock_get_run, mock_get_runs, viewer_client):
+        mock_get_run.return_value = {
+            "runId": "abc123", "jobName": "etl_job", "status": "STARTED",
+            "startTime": None, "endTime": None, "runConfigYaml": "",
+            "tags": [], "stats": None,
+        }
+        mock_get_runs.return_value = []
+        resp = viewer_client.get(reverse(RUN_URLS["change"], args=["abc123"]))
+        assert resp.status_code == 200
+        assert b"Cancel Run" not in resp.content
+
+    @patch("django_dagster.admin.client.get_runs")
+    @patch("django_dagster.admin.client.get_run")
+    def test_viewer_sees_no_reexecute_button(self, mock_get_run, mock_get_runs, viewer_client):
+        mock_get_run.return_value = {
+            "runId": "abc123", "jobName": "etl_job", "status": "FAILURE",
+            "startTime": None, "endTime": None, "runConfigYaml": "",
+            "tags": [], "stats": None,
+        }
+        mock_get_runs.return_value = []
+        resp = viewer_client.get(reverse(RUN_URLS["change"], args=["abc123"]))
+        assert resp.status_code == 200
+        assert b"Re-execute" not in resp.content
+
+    def test_viewer_cannot_cancel_run(self, viewer_client):
+        resp = viewer_client.post(reverse(RUN_URLS["cancel"], args=["abc123"]))
+        assert resp.status_code == 403
+
+    def test_viewer_cannot_reexecute_run(self, viewer_client):
+        resp = viewer_client.post(reverse(RUN_URLS["reexecute"], args=["abc123"]))
+        assert resp.status_code == 403
+
+    # -- Full permissions: can do everything ----------------------------------
+
+    @patch("django_dagster.admin.client.get_job_default_run_config")
+    def test_full_perm_can_trigger(self, mock_cfg, full_perm_client):
+        mock_cfg.return_value = {}
+        resp = full_perm_client.get(reverse(JOB_URLS["trigger"], args=["etl_job"]))
+        assert resp.status_code == 200
+
+    @patch("django_dagster.admin.client.cancel_run")
+    def test_full_perm_can_cancel(self, mock_cancel, full_perm_client):
+        resp = full_perm_client.post(reverse(RUN_URLS["cancel"], args=["abc123"]))
+        assert resp.status_code == 302
+        mock_cancel.assert_called_once_with("abc123")
+
+    @patch("django_dagster.admin.client.reexecute_run")
+    def test_full_perm_can_reexecute(self, mock_reexecute, full_perm_client):
+        mock_reexecute.return_value = "new-run"
+        resp = full_perm_client.post(reverse(RUN_URLS["reexecute"], args=["abc123"]))
+        assert resp.status_code == 302
+        mock_reexecute.assert_called_once_with("abc123")
+
+    @patch("django_dagster.admin.client.get_runs")
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_full_perm_sees_trigger_button(self, mock_get_jobs, mock_get_runs, full_perm_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
+        ]
+        mock_get_runs.return_value = []
+        resp = full_perm_client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
+        assert resp.status_code == 200
+        assert b"Trigger New Run" in resp.content
+
+    # -- Superuser: always has access -----------------------------------------
+
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_superuser_can_see_jobs(self, mock_get_jobs, superuser_client):
+        mock_get_jobs.return_value = []
+        resp = superuser_client.get(reverse(JOB_URLS["changelist"]))
+        assert resp.status_code == 200
+
+    @patch("django_dagster.admin.client.get_job_default_run_config")
+    def test_superuser_can_trigger(self, mock_cfg, superuser_client):
+        mock_cfg.return_value = {}
+        resp = superuser_client.get(reverse(JOB_URLS["trigger"], args=["etl_job"]))
+        assert resp.status_code == 200
+
+    @patch("django_dagster.admin.client.cancel_run")
+    def test_superuser_can_cancel(self, mock_cancel, superuser_client):
+        resp = superuser_client.post(reverse(RUN_URLS["cancel"], args=["abc123"]))
+        assert resp.status_code == 302
+
+    # -- Admin index ----------------------------------------------------------
+
+    def test_viewer_sees_dagster_in_index(self, viewer_client):
+        resp = viewer_client.get(reverse("admin:index"))
+        assert resp.status_code == 200
+        assert b"Dagster" in resp.content
+
+    def test_no_perms_no_dagster_in_index(self, client, db):
+        from django.contrib.auth.models import User
+
+        User.objects.create_user("noperms", password="pw", is_staff=True)
+        client.login(username="noperms", password="pw")
+        resp = client.get(reverse("admin:index"))
+        assert resp.status_code == 200
+        # The Dagster section should not appear
+        assert b"django_dagster" not in resp.content
+
+
+@pytest.mark.django_db
+class TestPermissionsDisabled:
+    """Default (DAGSTER_PERMISSIONS_ENABLED=False): all staff = full access."""
+
+    def test_staff_can_access_without_explicit_perms(self, staff_client):
+        """Staff user with no explicit permissions can still see everything."""
+        with patch("django_dagster.admin.client.get_jobs") as mock:
+            mock.return_value = []
+            resp = staff_client.get(reverse(JOB_URLS["changelist"]))
+            assert resp.status_code == 200
+
+    @patch("django_dagster.admin.client.get_job_default_run_config")
+    def test_staff_can_trigger_without_explicit_perms(self, mock_cfg, staff_client):
+        mock_cfg.return_value = {}
+        resp = staff_client.get(reverse(JOB_URLS["trigger"], args=["etl_job"]))
+        assert resp.status_code == 200
+
+    @patch("django_dagster.admin.client.cancel_run")
+    def test_staff_can_cancel_without_explicit_perms(self, mock_cancel, staff_client):
+        resp = staff_client.post(reverse(RUN_URLS["cancel"], args=["abc123"]))
+        assert resp.status_code == 302

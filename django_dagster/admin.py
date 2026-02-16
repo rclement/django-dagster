@@ -2,7 +2,7 @@ import json
 
 from django.conf import settings
 from django.contrib import admin, messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseForbidden, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 
@@ -18,6 +18,10 @@ from .models import DagsterJob, DagsterRun
 class _DagsterAdminBase(admin.ModelAdmin):
     """Common permission logic for Dagster admin classes."""
 
+    @staticmethod
+    def _permissions_enabled():
+        return getattr(settings, "DAGSTER_PERMISSIONS_ENABLED", False)
+
     def has_change_permission(self, request, obj=None):
         return False
 
@@ -25,10 +29,21 @@ class _DagsterAdminBase(admin.ModelAdmin):
         return False
 
     def has_view_permission(self, request, obj=None):
+        if self._permissions_enabled():
+            return super().has_view_permission(request, obj)
         return request.user.is_active and request.user.is_staff
 
     def has_module_permission(self, request):
+        if self._permissions_enabled():
+            return super().has_module_permission(request)
         return request.user.is_active and request.user.is_staff
+
+    def _check_view_perm(self, request):
+        """Return HttpResponseForbidden if permissions are enabled and the
+        user lacks view permission for this model, otherwise None."""
+        if self._permissions_enabled() and not self.has_view_permission(request):
+            return HttpResponseForbidden()
+        return None
 
     def _build_context(self, request, extra=None):
         dagster_url = getattr(settings, "DAGSTER_URL", None)
@@ -101,6 +116,10 @@ class DagsterJobAdmin(_DagsterAdminBase):
     # -- changelist ----------------------------------------------------------
 
     def job_list_view(self, request):
+        denied = self._check_view_perm(request)
+        if denied:
+            return denied
+
         jobs = None
         try:
             jobs = client.get_jobs()
@@ -136,6 +155,10 @@ class DagsterJobAdmin(_DagsterAdminBase):
     # -- change (detail) -----------------------------------------------------
 
     def job_detail_view(self, request, job_name):
+        denied = self._check_view_perm(request)
+        if denied:
+            return denied
+
         job = None
         try:
             jobs = client.get_jobs()
@@ -178,10 +201,16 @@ class DagsterJobAdmin(_DagsterAdminBase):
                     dagster_url, run["runId"],
                 )
 
+        can_trigger = (
+            not self._permissions_enabled()
+            or request.user.has_perm("django_dagster.trigger_dagsterjob")
+        )
+
         context = self._build_context(request, {
             "title": "View Dagster Job",
             "job": job,
             "recent_runs": recent_runs,
+            "can_trigger": can_trigger,
             "dagster_job_ui_url": dagster_job_ui_url,
             "dagster_location_ui_url": dagster_location_ui_url,
         })
@@ -192,6 +221,11 @@ class DagsterJobAdmin(_DagsterAdminBase):
     # -- add (trigger) -------------------------------------------------------
 
     def trigger_view(self, request, job_name):
+        if self._permissions_enabled() and not request.user.has_perm(
+            "django_dagster.trigger_dagsterjob"
+        ):
+            return HttpResponseForbidden()
+
         if request.method == "POST":
             config_json = request.POST.get("run_config", "").strip()
 
@@ -298,6 +332,10 @@ class DagsterRunAdmin(_DagsterAdminBase):
     }
 
     def run_list_view(self, request):
+        denied = self._check_view_perm(request)
+        if denied:
+            return denied
+
         job_name = request.GET.get("job")
         status = request.GET.get("status")
         statuses = [status] if status else None
@@ -361,6 +399,10 @@ class DagsterRunAdmin(_DagsterAdminBase):
     # -- change (detail) -----------------------------------------------------
 
     def run_detail_view(self, request, object_id):
+        denied = self._check_view_perm(request)
+        if denied:
+            return denied
+
         run = None
         try:
             run = client.get_run(object_id)
@@ -377,10 +419,23 @@ class DagsterRunAdmin(_DagsterAdminBase):
                 reverse("admin:django_dagster_dagsterrun_changelist")
             )
 
-        can_cancel = run["status"] in (
+        status_can_cancel = run["status"] in (
             "QUEUED", "NOT_STARTED", "STARTING", "STARTED",
         )
-        can_reexecute = run["status"] in ("SUCCESS", "FAILURE", "CANCELED")
+        status_can_reexecute = run["status"] in (
+            "SUCCESS", "FAILURE", "CANCELED",
+        )
+
+        if self._permissions_enabled():
+            can_cancel = status_can_cancel and request.user.has_perm(
+                "django_dagster.cancel_dagsterrun"
+            )
+            can_reexecute = status_can_reexecute and request.user.has_perm(
+                "django_dagster.reexecute_dagsterrun"
+            )
+        else:
+            can_cancel = status_can_cancel
+            can_reexecute = status_can_reexecute
 
         # Fetch recent runs for the same job
         related_runs = None
@@ -441,6 +496,11 @@ class DagsterRunAdmin(_DagsterAdminBase):
     # -- cancel --------------------------------------------------------------
 
     def cancel_run_view(self, request, run_id):
+        if self._permissions_enabled() and not request.user.has_perm(
+            "django_dagster.cancel_dagsterrun"
+        ):
+            return HttpResponseForbidden()
+
         if request.method == "POST":
             try:
                 client.cancel_run(run_id)
@@ -460,6 +520,11 @@ class DagsterRunAdmin(_DagsterAdminBase):
     # -- re-execute ----------------------------------------------------------
 
     def reexecute_run_view(self, request, run_id):
+        if self._permissions_enabled() and not request.user.has_perm(
+            "django_dagster.reexecute_dagsterrun"
+        ):
+            return HttpResponseForbidden()
+
         if request.method == "POST":
             try:
                 new_run_id = client.reexecute_run(run_id)

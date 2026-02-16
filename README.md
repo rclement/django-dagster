@@ -35,6 +35,30 @@ No URL configuration is needed — the plugin registers itself with the Django a
 
 Navigate to `/admin/` and look for the **Dagster** section.
 
+## Permissions
+
+By default, all staff users (`is_staff=True`) have full access to all Dagster views and actions. To enable granular, Django-native permission control, add this to your settings:
+
+```python
+DAGSTER_PERMISSIONS_ENABLED = True
+```
+
+When enabled, access is governed by standard Django permissions that you can assign to users or groups via the Django admin:
+
+| Permission | Codename | Grants access to |
+|---|---|---|
+| Can view Job | `view_dagsterjob` | View job list and job detail pages |
+| Can view Run | `view_dagsterrun` | View run list and run detail pages |
+| Can trigger Dagster jobs | `trigger_dagsterjob` | Trigger/submit a new job run |
+| Can cancel Dagster runs | `cancel_dagsterrun` | Cancel a running job |
+| Can re-execute Dagster runs | `reexecute_dagsterrun` | Re-execute a completed/failed run |
+
+Superusers always have all permissions regardless of this setting.
+
+**Example: read-only viewer group**
+
+In the Django admin, create a group called "Dagster Viewers" and assign it the `view_dagsterjob` and `view_dagsterrun` permissions. Users in this group can browse jobs and runs but cannot trigger, cancel, or re-execute.
+
 ## Demo
 
 The `demo/` directory contains a ready-to-run example with:
@@ -63,12 +87,16 @@ Dagster will start at http://localhost:3000.
 
 ```bash
 cd demo
-uv run python manage.py migrate
-uv run python manage.py createsuperuser
+uv run python manage.py setup_demo
 uv run python manage.py runserver
 ```
 
-Then open http://localhost:8000/admin/ and log in. The **Dagster** section lets you list jobs, trigger runs, view run details, cancel or retry.
+Then open http://localhost:8000/admin/ and log in with one of the pre-created users:
+
+- **admin** / **admin** — superuser with full access
+- **viewer** / **viewer** — staff user with view-only access (cannot trigger, cancel, or re-execute)
+
+The demo has `DAGSTER_PERMISSIONS_ENABLED = True` so you can see the permission system in action.
 
 ### Things to try
 

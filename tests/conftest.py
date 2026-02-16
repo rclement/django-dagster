@@ -1,5 +1,8 @@
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Permission, User
+from django.contrib.contenttypes.models import ContentType
+
+from django_dagster.models import DagsterJob, DagsterRun
 
 
 @pytest.fixture
@@ -14,6 +17,67 @@ def staff_user(db):
 @pytest.fixture
 def staff_client(client, staff_user):
     client.login(username="staff", password="password")
+    return client
+
+
+def _add_perms(user, model, codenames):
+    ct = ContentType.objects.get_for_model(model)
+    for codename in codenames:
+        perm = Permission.objects.get(content_type=ct, codename=codename)
+        user.user_permissions.add(perm)
+
+
+@pytest.fixture
+def viewer_user(db):
+    """Staff user with only view permissions (no action permissions)."""
+    user = User.objects.create_user(
+        username="viewer",
+        password="password",
+        is_staff=True,
+    )
+    _add_perms(user, DagsterJob, ["view_dagsterjob"])
+    _add_perms(user, DagsterRun, ["view_dagsterrun"])
+    return user
+
+
+@pytest.fixture
+def viewer_client(client, viewer_user):
+    client.login(username="viewer", password="password")
+    return client
+
+
+@pytest.fixture
+def full_perm_user(db):
+    """Staff user with all Dagster permissions."""
+    user = User.objects.create_user(
+        username="full",
+        password="password",
+        is_staff=True,
+    )
+    _add_perms(user, DagsterJob, ["view_dagsterjob", "trigger_dagsterjob"])
+    _add_perms(user, DagsterRun, [
+        "view_dagsterrun", "cancel_dagsterrun", "reexecute_dagsterrun",
+    ])
+    return user
+
+
+@pytest.fixture
+def full_perm_client(client, full_perm_user):
+    client.login(username="full", password="password")
+    return client
+
+
+@pytest.fixture
+def superuser(db):
+    return User.objects.create_superuser(
+        username="admin",
+        password="password",
+    )
+
+
+@pytest.fixture
+def superuser_client(client, superuser):
+    client.login(username="admin", password="password")
     return client
 
 
