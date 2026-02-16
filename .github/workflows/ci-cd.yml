@@ -49,8 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: main
-      - uses: actions/checkout@v6
+          fetch-depth: 0
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
