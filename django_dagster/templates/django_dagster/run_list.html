@@ -1,45 +1,56 @@
 {% extends "django_dagster/base.html" %}
+{% load i18n %}
 
 {% block content_title %}<h1>{{ title }}</h1>{% endblock %}
 
 {% block dagster_breadcrumbs %}
-&rsaquo; <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}">Runs</a>
+&rsaquo; {% trans 'Runs' %}
 {% endblock %}
 
 {% block dagster_content %}
-<form method="get" style="margin-bottom: 15px;">
-    <label for="id_job">Job:</label>
-    <input type="text" id="id_job" name="job" value="{{ current_job|default:'' }}" placeholder="All jobs">
-    <label for="id_status" style="margin-left: 10px;">Status:</label>
+<div id="changelist">
+<div id="toolbar"><form method="get">
+    <label for="id_job">{% trans 'Job:' %}</label>
+    <select id="id_job" name="job">
+        <option value="">{% trans 'All' %}</option>
+        {% if jobs %}
+            {% for job in jobs %}
+            <option value="{{ job.name }}" {% if job.name == current_job %}selected{% endif %}>{{ job.name }}</option>
+            {% endfor %}
+        {% endif %}
+        {% if current_job and not jobs %}
+            <option value="{{ current_job }}" selected>{{ current_job }}</option>
+        {% endif %}
+    </select>
+    <label for="id_status">{% trans 'Status:' %}</label>
     <select id="id_status" name="status">
-        <option value="">All</option>
+        <option value="">{% trans 'All' %}</option>
         {% for s in statuses %}
         <option value="{{ s }}" {% if s == current_status %}selected{% endif %}>{{ s }}</option>
         {% endfor %}
     </select>
-    <input type="submit" value="Filter" class="button">
-</form>
+    <input type="submit" value="{% trans 'Filter' %}">
+</form></div>
 
 {% if runs is not None %}
     {% if runs %}
-    <table class="dagster-table">
+    <div class="results">
+    <table id="result_list">
         <thead>
             <tr>
-                <th>Run ID</th>
-                <th>Job</th>
-                <th>Status</th>
-                <th>Started</th>
-                <th>Ended</th>
+                <th scope="col"><div class="text"><a href="#">{% trans 'Run ID' %}</a></div></th>
+                <th scope="col"><div class="text"><a href="#">{% trans 'Job' %}</a></div></th>
+                <th scope="col"><div class="text"><a href="#">{% trans 'Status' %}</a></div></th>
+                <th scope="col"><div class="text"><a href="#">{% trans 'Started' %}</a></div></th>
+                <th scope="col"><div class="text"><a href="#">{% trans 'Ended' %}</a></div></th>
             </tr>
         </thead>
         <tbody>
             {% for run in runs %}
             <tr>
-                <td>
-                    <a href="{% url 'admin:django_dagster_dagsterrun_change' run.runId %}">
-                        {{ run.runId|truncatechars:12 }}
-                    </a>
-                </td>
+                <th scope="row">
+                    <a href="{% url 'admin:django_dagster_dagsterrun_change' run.runId %}">{{ run.runId }}</a>
+                </th>
                 <td>{{ run.jobName }}</td>
                 <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
                 <td>{{ run.startTime|default:"—" }}</td>
@@ -48,8 +59,10 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
-    <p>No runs found{% if current_job %} for job "{{ current_job }}"{% endif %}{% if current_status %} with status "{{ current_status }}"{% endif %}.</p>
+    <p>{% trans 'No runs found' %}{% if current_job %} {% trans 'for job' %} "{{ current_job }}"{% endif %}{% if current_status %} {% trans 'with status' %} "{{ current_status }}"{% endif %}.</p>
     {% endif %}
 {% endif %}
+</div>
 {% endblock %}

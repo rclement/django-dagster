@@ -37,6 +37,7 @@ def test_run_admin_class():
 JOB_URLS = {
     "changelist": "admin:django_dagster_dagsterjob_changelist",
     "add": "admin:django_dagster_dagsterjob_add",
+    "change": "admin:django_dagster_dagsterjob_change",
 }
 
 RUN_URLS = {
@@ -51,6 +52,7 @@ RUN_URLS = {
 def test_urls_resolve():
     assert reverse(JOB_URLS["changelist"])
     assert reverse(JOB_URLS["add"])
+    assert reverse(JOB_URLS["change"], args=["etl_job"])
     assert reverse(RUN_URLS["changelist"])
     assert reverse(RUN_URLS["change"], args=["abc123"])
     assert reverse(RUN_URLS["cancel"], args=["abc123"])
@@ -137,27 +139,94 @@ class TestJobListView:
         assert b"Failed to connect to Dagster" in resp.content
 
     @patch("django_dagster.admin.client.get_jobs")
-    def test_trigger_link_points_to_add(self, mock_get_jobs, staff_client):
+    def test_job_name_links_to_detail(self, mock_get_jobs, staff_client):
         mock_get_jobs.return_value = [
             {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
         ]
 
         resp = staff_client.get(reverse(JOB_URLS["changelist"]))
+
+        detail_url = reverse(JOB_URLS["change"], args=["etl_job"])
+        assert detail_url.encode() in resp.content
+
+
+# ---------------------------------------------------------------------------
+# Job detail (change view)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestJobDetailView:
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_renders_detail(self, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "Daily ETL", "repository": "repo", "location": "loc"},
+        ]
+
+        resp = staff_client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
+
+        assert resp.status_code == 200
+        assert b"etl_job" in resp.content
+        assert b"Daily ETL" in resp.content
+        assert b"repo" in resp.content
+        assert b"loc" in resp.content
+
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_has_trigger_link(self, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
+        ]
+
+        resp = staff_client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
 
         add_url = reverse(JOB_URLS["add"])
         assert add_url.encode() in resp.content
 
     @patch("django_dagster.admin.client.get_jobs")
-    def test_runs_link_points_to_run_changelist(self, mock_get_jobs, staff_client):
+    def test_has_runs_link(self, mock_get_jobs, staff_client):
         mock_get_jobs.return_value = [
             {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
         ]
 
-        resp = staff_client.get(reverse(JOB_URLS["changelist"]))
+        resp = staff_client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
 
         runs_url = reverse(RUN_URLS["changelist"])
         assert runs_url.encode() in resp.content
         assert b"?job=etl_job" in resp.content
+
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_not_found_redirects(self, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = [
+            {"name": "other_job", "description": "", "repository": "r", "location": "l"},
+        ]
+
+        resp = staff_client.get(
+            reverse(JOB_URLS["change"], args=["nonexistent_job"])
+        )
+
+        assert resp.status_code == 302
+        assert reverse(JOB_URLS["changelist"]) in resp.url
+
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_connection_error_redirects(self, mock_get_jobs, staff_client):
+        mock_get_jobs.side_effect = ConnectionError("refused")
+
+        resp = staff_client.get(
+            reverse(JOB_URLS["change"], args=["etl_job"])
+        )
+
+        assert resp.status_code == 302
+
+    @patch("django_dagster.admin.client.get_jobs")
+    def test_uses_fieldset_layout(self, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "Daily ETL", "repository": "r", "location": "l"},
+        ]
+
+        resp = staff_client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
+
+        assert b"fieldset" in resp.content
+        assert b"submit-row" in resp.content
 
 
 # ---------------------------------------------------------------------------
@@ -284,9 +353,11 @@ class TestTriggerJobView:
 
 
 @pytest.mark.django_db
+@patch("django_dagster.admin.client.get_jobs")
 class TestRunListView:
     @patch("django_dagster.admin.client.get_runs")
-    def test_renders_runs(self, mock_get_runs, staff_client):
+    def test_renders_runs(self, mock_get_runs, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = []
         mock_get_runs.return_value = [
             {
                 "runId": "abc12345-def0-1234-5678-abcdef012345",
@@ -301,12 +372,14 @@ class TestRunListView:
         resp = staff_client.get(reverse(RUN_URLS["changelist"]))
 
         assert resp.status_code == 200
-        assert b"abc12345" in resp.content
+        # Full run ID displayed (not truncated)
+        assert b"abc12345-def0-1234-5678-abcdef012345" in resp.content
         assert b"SUCCESS" in resp.content
         mock_get_runs.assert_called_once_with(job_name=None, statuses=None)
 
     @patch("django_dagster.admin.client.get_runs")
-    def test_filters(self, mock_get_runs, staff_client):
+    def test_filters(self, mock_get_runs, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = []
         mock_get_runs.return_value = []
 
         resp = staff_client.get(
@@ -319,7 +392,8 @@ class TestRunListView:
         )
 
     @patch("django_dagster.admin.client.get_runs")
-    def test_connection_error(self, mock_get_runs, staff_client):
+    def test_connection_error(self, mock_get_runs, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = []
         mock_get_runs.side_effect = ConnectionError("refused")
 
         resp = staff_client.get(reverse(RUN_URLS["changelist"]))
@@ -328,7 +402,8 @@ class TestRunListView:
         assert b"Failed to connect to Dagster" in resp.content
 
     @patch("django_dagster.admin.client.get_runs")
-    def test_run_links_to_detail(self, mock_get_runs, staff_client):
+    def test_run_links_to_detail(self, mock_get_runs, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = []
         run_id = "abc12345-def0-1234-5678-abcdef012345"
         mock_get_runs.return_value = [
             {
@@ -345,6 +420,22 @@ class TestRunListView:
 
         change_url = reverse(RUN_URLS["change"], args=[run_id])
         assert change_url.encode() in resp.content
+
+    @patch("django_dagster.admin.client.get_runs")
+    def test_job_filter_is_dropdown(self, mock_get_runs, mock_get_jobs, staff_client):
+        mock_get_jobs.return_value = [
+            {"name": "etl_job", "description": "", "repository": "r", "location": "l"},
+            {"name": "report_job", "description": "", "repository": "r", "location": "l"},
+        ]
+        mock_get_runs.return_value = []
+
+        resp = staff_client.get(reverse(RUN_URLS["changelist"]))
+
+        assert resp.status_code == 200
+        # Job filter should be a <select> with job names as options
+        assert b'<select id="id_job"' in resp.content
+        assert b"etl_job" in resp.content
+        assert b"report_job" in resp.content
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +476,11 @@ class TestRunDetailView:
         assert b"etl_job" in resp.content
         assert b"SUCCESS" in resp.content
         assert b"env=prod" in resp.content
+        # Full run ID displayed (not truncated)
+        assert b"abc12345-def0-1234-5678-abcdef012345" in resp.content
+        # Uses native Django admin layout
+        assert b"fieldset" in resp.content
+        assert b"submit-row" in resp.content
 
     @patch("django_dagster.admin.client.get_run")
     def test_cancel_button_shown_for_running(self, mock_get_run, staff_client):
