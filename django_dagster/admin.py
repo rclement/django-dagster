@@ -42,7 +42,7 @@ class _DagsterAdminBase(admin.ModelAdmin):
             base = dagster_url.rstrip("/")
             context["dagster_ui_jobs_url"] = f"{base}/jobs"
             context["dagster_ui_runs_url"] = f"{base}/runs"
-            context["dagster_ui_locations_url"] = f"{base}/locations"
+            context["dagster_ui_locations_url"] = f"{base}/deployment/locations"
         if extra:
             context.update(extra)
         return context
