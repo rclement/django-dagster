@@ -41,6 +41,10 @@ TEMPLATES = [
     },
 ]
 
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.MD5PasswordHasher",
+]
+
 DAGSTER_URL = "http://localhost:3000"
 
 STATIC_URL = "static/"
