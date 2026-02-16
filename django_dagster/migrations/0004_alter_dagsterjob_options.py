@@ -4,14 +4,21 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('django_dagster', '0003_alter_dagsterjob_options_alter_dagsterrun_options'),
+        ("django_dagster", "0003_alter_dagsterjob_options_alter_dagsterrun_options"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='dagsterjob',
-            options={'managed': False, 'permissions': [('trigger_dagsterjob', 'Can trigger Dagster jobs'), ('access_dagster_ui', 'Can access the Dagster UI')], 'verbose_name': 'Job', 'verbose_name_plural': 'Jobs'},
+            name="dagsterjob",
+            options={
+                "managed": False,
+                "permissions": [
+                    ("trigger_dagsterjob", "Can trigger Dagster jobs"),
+                    ("access_dagster_ui", "Can access the Dagster UI"),
+                ],
+                "verbose_name": "Job",
+                "verbose_name_plural": "Jobs",
+            },
         ),
     ]

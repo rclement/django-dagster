@@ -1,5 +1,5 @@
-import json
 from datetime import datetime, timezone
+from typing import Any
 from urllib.parse import urlparse
 
 import yaml
@@ -7,17 +7,17 @@ from dagster_graphql import DagsterGraphQLClient
 from django.conf import settings
 
 
-def get_client():
+def get_client() -> DagsterGraphQLClient:
     """Create a DagsterGraphQLClient from Django settings."""
     parsed = urlparse(settings.DAGSTER_URL)
     return DagsterGraphQLClient(
-        hostname=parsed.hostname,
+        hostname=parsed.hostname or "localhost",
         port_number=parsed.port,
         use_https=parsed.scheme == "https",
     )
 
 
-def get_jobs():
+def get_jobs() -> list[dict[str, Any]]:
     """List all jobs across all repositories."""
     client = get_client()
     result = client._execute(
@@ -35,7 +35,7 @@ def get_jobs():
         }
         """
     )
-    jobs = []
+    jobs: list[dict[str, Any]] = []
     for repo in result["repositoriesOrError"]["nodes"]:
         for pipeline in repo["pipelines"]:
             jobs.append(
@@ -49,30 +49,35 @@ def get_jobs():
     return jobs
 
 
-def _parse_timestamp(ts):
+def _parse_timestamp(ts: Any) -> datetime | None:
     """Convert a unix timestamp (float or None) to a datetime."""
     if ts is None:
         return None
     return datetime.fromtimestamp(float(ts), tz=timezone.utc)
 
 
-def _format_run(run):
+def _format_run(run: dict[str, Any]) -> dict[str, Any]:
     """Convert raw GraphQL run data into a display-friendly dict."""
     run["startTime"] = _parse_timestamp(run.get("startTime"))
     run["endTime"] = _parse_timestamp(run.get("endTime"))
     return run
 
 
-def get_runs(limit=25, cursor=None, job_name=None, statuses=None):
+def get_runs(
+    limit: int = 25,
+    cursor: str | None = None,
+    job_name: str | None = None,
+    statuses: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """List runs with optional filtering."""
     client = get_client()
-    run_filter = {}
+    run_filter: dict[str, Any] = {}
     if job_name:
         run_filter["pipelineName"] = job_name
     if statuses:
         run_filter["statuses"] = statuses
 
-    variables = {"limit": limit}
+    variables: dict[str, Any] = {"limit": limit}
     if cursor:
         variables["cursor"] = cursor
     if run_filter:
@@ -100,7 +105,7 @@ def get_runs(limit=25, cursor=None, job_name=None, statuses=None):
     return [_format_run(r) for r in result["runsOrError"]["results"]]
 
 
-def get_run(run_id):
+def get_run(run_id: str) -> dict[str, Any] | None:
     """Get detailed metadata for a single run."""
     client = get_client()
     result = client._execute(
@@ -142,10 +147,12 @@ def get_run(run_id):
     return _format_run(run_data)
 
 
-def get_run_events(run_id, cursor=None, limit=1000):
+def get_run_events(
+    run_id: str, cursor: str | None = None, limit: int = 1000
+) -> dict[str, Any] | None:
     """Fetch event logs for a run."""
     client = get_client()
-    variables = {"runId": run_id}
+    variables: dict[str, Any] = {"runId": run_id}
     if cursor:
         variables["afterCursor"] = cursor
     if limit:
@@ -200,7 +207,7 @@ def get_run_events(run_id, cursor=None, limit=1000):
     }
 
 
-def get_job_default_run_config(job_name):
+def get_job_default_run_config(job_name: str) -> dict[str, Any]:
     """Fetch the default run config for a job from the Dagster API.
 
     Returns a dict (possibly empty) with the default config values.
@@ -240,12 +247,12 @@ def get_job_default_run_config(job_name):
 
 
 def submit_job(
-    job_name,
-    repository_location_name=None,
-    repository_name=None,
-    run_config=None,
-    tags=None,
-):
+    job_name: str,
+    repository_location_name: str | None = None,
+    repository_name: str | None = None,
+    run_config: dict[str, Any] | None = None,
+    tags: dict[str, str] | None = None,
+) -> str:
     """Submit a job for execution. Returns the run ID."""
     client = get_client()
     return client.submit_job_execution(
@@ -257,13 +264,13 @@ def submit_job(
     )
 
 
-def cancel_run(run_id):
+def cancel_run(run_id: str) -> None:
     """Cancel a running job."""
     client = get_client()
     client.terminate_run(run_id)
 
 
-def reexecute_run(run_id):
+def reexecute_run(run_id: str) -> str:
     """Re-execute a run with the same configuration."""
     run = get_run(run_id)
     if run is None:
@@ -276,14 +283,11 @@ def reexecute_run(run_id):
         run_config = None
 
     # Filter out dagster system tags
-    tags = (
-        {
-            t["key"]: t["value"]
-            for t in run.get("tags", [])
-            if not t["key"].startswith("dagster/")
-        }
-        or None
-    )
+    tags = {
+        t["key"]: t["value"]
+        for t in run.get("tags", [])
+        if not t["key"].startswith("dagster/")
+    } or None
 
     return submit_job(
         job_name=run["jobName"],

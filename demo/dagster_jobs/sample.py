@@ -20,10 +20,7 @@ from dagster import (
 @op
 def extract(context: OpExecutionContext):
     """Simulate extracting data from an external source."""
-    rows = [
-        {"id": i, "value": random.randint(1, 100)}
-        for i in range(1, 11)
-    ]
+    rows = [{"id": i, "value": random.randint(1, 100)} for i in range(1, 11)]
     context.log.info(f"Extracted {len(rows)} rows")
     return rows
 
@@ -31,10 +28,7 @@ def extract(context: OpExecutionContext):
 @op
 def transform(context: OpExecutionContext, raw_data: list):
     """Apply a simple transformation: double every value."""
-    transformed = [
-        {**row, "value": row["value"] * 2}
-        for row in raw_data
-    ]
+    transformed = [{**row, "value": row["value"] * 2} for row in raw_data]
     context.log.info(f"Transformed {len(transformed)} rows")
     return transformed
 
@@ -73,7 +67,7 @@ class ReportConfig(Config):
 @op
 def generate_report(context: OpExecutionContext, config: ReportConfig):
     """Generate a report with a configurable number of sections."""
-    sections = [f"Section {i+1}" for i in range(config.num_sections)]
+    sections = [f"Section {i + 1}" for i in range(config.num_sections)]
     context.log.info(
         f"Generated report '{config.report_name}' with {len(sections)} sections"
     )

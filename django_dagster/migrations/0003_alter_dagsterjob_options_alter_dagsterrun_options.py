@@ -4,18 +4,30 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('django_dagster', '0002_dagsterrun'),
+        ("django_dagster", "0002_dagsterrun"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='dagsterjob',
-            options={'managed': False, 'permissions': [('trigger_dagsterjob', 'Can trigger Dagster jobs')], 'verbose_name': 'Job', 'verbose_name_plural': 'Jobs'},
+            name="dagsterjob",
+            options={
+                "managed": False,
+                "permissions": [("trigger_dagsterjob", "Can trigger Dagster jobs")],
+                "verbose_name": "Job",
+                "verbose_name_plural": "Jobs",
+            },
         ),
         migrations.AlterModelOptions(
-            name='dagsterrun',
-            options={'managed': False, 'permissions': [('cancel_dagsterrun', 'Can cancel Dagster runs'), ('reexecute_dagsterrun', 'Can re-execute Dagster runs')], 'verbose_name': 'Run', 'verbose_name_plural': 'Runs'},
+            name="dagsterrun",
+            options={
+                "managed": False,
+                "permissions": [
+                    ("cancel_dagsterrun", "Can cancel Dagster runs"),
+                    ("reexecute_dagsterrun", "Can re-execute Dagster runs"),
+                ],
+                "verbose_name": "Run",
+                "verbose_name_plural": "Runs",
+            },
         ),
     ]

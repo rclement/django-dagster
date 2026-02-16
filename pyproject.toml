@@ -11,13 +11,37 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest",
-    "pytest-django",
+    "pytest==9.0.2",
+    "pytest-cov==7.0.0",
+    "pytest-django==4.12.0",
+    "ruff==0.15.1",
+    "mypy==1.19.1",
+    "django-stubs==5.2.9",
+    "pip-audit==2.10.0",
+    "bandit==1.9.3",
+    "invoke==2.2.1",
 ]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"
 pythonpath = ["."]
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["dagster_graphql.*", "gql.*", "yaml.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+omit = ["django_dagster/migrations/*", "django_dagster/urls.py"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if __name__"]
+
+[tool.django-stubs]
+django_settings_module = "tests.settings"
 
 [build-system]
 requires = ["hatchling"]

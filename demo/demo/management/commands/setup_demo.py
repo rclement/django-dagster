@@ -23,7 +23,9 @@ class Command(BaseCommand):
                 password="admin",
                 email="admin@example.com",
             )
-            self.stdout.write(self.style.SUCCESS("Created superuser 'admin' (password: admin)"))
+            self.stdout.write(
+                self.style.SUCCESS("Created superuser 'admin' (password: admin)")
+            )
 
         # --- Viewer (staff, view-only + reports) ---
         viewer, created = User.objects.get_or_create(
@@ -37,15 +39,23 @@ class Command(BaseCommand):
         job_ct = ContentType.objects.get_for_model(DagsterJob)
         run_ct = ContentType.objects.get_for_model(DagsterRun)
         report_ct = ContentType.objects.get_for_model(ReportRequest)
-        viewer.user_permissions.set([
-            Permission.objects.get(content_type=job_ct, codename="view_dagsterjob"),
-            Permission.objects.get(content_type=run_ct, codename="view_dagsterrun"),
-            # Reports app: viewer can browse and create report requests
-            Permission.objects.get(content_type=report_ct, codename="view_reportrequest"),
-            Permission.objects.get(content_type=report_ct, codename="add_reportrequest"),
-        ])
+        viewer.user_permissions.set(
+            [
+                Permission.objects.get(content_type=job_ct, codename="view_dagsterjob"),
+                Permission.objects.get(content_type=run_ct, codename="view_dagsterrun"),
+                # Reports app: viewer can browse and create report requests
+                Permission.objects.get(
+                    content_type=report_ct, codename="view_reportrequest"
+                ),
+                Permission.objects.get(
+                    content_type=report_ct, codename="add_reportrequest"
+                ),
+            ]
+        )
         if created:
-            self.stdout.write(self.style.SUCCESS("Created staff user 'viewer' (password: viewer)"))
+            self.stdout.write(
+                self.style.SUCCESS("Created staff user 'viewer' (password: viewer)")
+            )
         else:
             self.stdout.write("User 'viewer' already exists, permissions updated.")
 
@@ -55,7 +65,11 @@ class Command(BaseCommand):
         self.stdout.write()
         self.stdout.write("Login credentials:")
         self.stdout.write("  admin  / admin   — full access (superuser)")
-        self.stdout.write("  viewer / viewer  — view-only (cannot trigger, cancel, or re-execute)")
+        self.stdout.write(
+            "  viewer / viewer  — view-only (cannot trigger, cancel, or re-execute)"
+        )
         self.stdout.write()
         self.stdout.write("Try the Reports app (Reports > Report requests) to see how")
-        self.stdout.write("custom Django models can trigger Dagster jobs behind the scenes.")
+        self.stdout.write(
+            "custom Django models can trigger Dagster jobs behind the scenes."
+        )
