@@ -2,7 +2,14 @@
 name = "django-dagster"
 version = "0.1.0"
 description = "Django plugin for interacting with a Dagster server"
-requires-python = ">=3.13"
+requires-python = ">=3.10,<3.15"
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
 license = "MIT"
 dependencies = [
     "django>=4.2",
