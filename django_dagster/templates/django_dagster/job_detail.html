@@ -48,6 +48,9 @@
                 <th>{% trans 'Status' %}</th>
                 <th>{% trans 'Started' %}</th>
                 <th>{% trans 'Ended' %}</th>
+                {% if dagster_url %}
+                <th>{% trans 'Dagster UI' %}</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -57,6 +60,9 @@
                 <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
                 <td>{{ run.startTime|default:"—" }}</td>
                 <td>{{ run.endTime|default:"—" }}</td>
+                {% if dagster_url %}
+                <td>{% if run.dagster_ui_url %}<a href="{{ run.dagster_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}">&#x2197;</a>{% endif %}</td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
@@ -74,5 +80,8 @@
         <input type="hidden" name="job" value="{{ job.name }}">
         <input type="submit" value="{% trans 'View Runs' %}">
     </form>
+    {% if dagster_job_ui_url %}
+    <a href="{{ dagster_job_ui_url }}" target="_blank" rel="noopener" class="button" style="display:inline-block;">{% trans 'View in Dagster UI' %} &#x2197;</a>
+    {% endif %}
 </div>
 {% endblock %}

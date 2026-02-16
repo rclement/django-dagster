@@ -168,6 +168,10 @@
                     <div class="clear"></div>
                 </th>
                 {% endif %}
+
+                {% if dagster_url %}
+                <th scope="col"><div class="text">{% trans 'Dagster UI' %}</div></th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -180,6 +184,9 @@
                 <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
                 <td>{{ run.startTime|default:"—" }}</td>
                 <td>{{ run.endTime|default:"—" }}</td>
+                {% if dagster_url %}
+                <td>{% if run.dagster_ui_url %}<a href="{{ run.dagster_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}">&#x2197;</a>{% endif %}</td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>

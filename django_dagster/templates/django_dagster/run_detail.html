@@ -94,6 +94,9 @@
                 <th>{% trans 'Status' %}</th>
                 <th>{% trans 'Started' %}</th>
                 <th>{% trans 'Ended' %}</th>
+                {% if dagster_url %}
+                <th>{% trans 'Dagster UI' %}</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -103,6 +106,9 @@
                 <td><span class="status-badge status-{{ r.status }}">{{ r.status }}</span></td>
                 <td>{{ r.startTime|default:"—" }}</td>
                 <td>{{ r.endTime|default:"—" }}</td>
+                {% if dagster_url %}
+                <td>{% if r.dagster_ui_url %}<a href="{{ r.dagster_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}">&#x2197;</a>{% endif %}</td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
@@ -127,5 +133,8 @@
     <form method="get" action="{% url 'admin:django_dagster_dagsterrun_changelist' %}" style="display:inline;">
         <input type="submit" value="{% trans 'All Runs' %}">
     </form>
+    {% if dagster_run_ui_url %}
+    <a href="{{ dagster_run_ui_url }}" target="_blank" rel="noopener" class="button" style="display:inline-block;">{% trans 'View in Dagster UI' %} &#x2197;</a>
+    {% endif %}
 </div>
 {% endblock %}
