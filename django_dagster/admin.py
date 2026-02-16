@@ -69,14 +69,13 @@ class _DagsterAdminBase(admin.ModelAdmin):  # type: ignore[type-arg]
             "opts": self.model._meta,
             "app_label": self.model._meta.app_label,
             "dagster_url": dagster_url if show_dagster_ui else None,
+            **(extra or {}),
         }
         if show_dagster_ui and dagster_url:
             base = dagster_url.rstrip("/")
             context["dagster_ui_jobs_url"] = f"{base}/jobs"
             context["dagster_ui_runs_url"] = f"{base}/runs"
             context["dagster_ui_locations_url"] = f"{base}/deployment/locations"
-        if extra:
-            context.update(extra)
         return context
 
     @staticmethod

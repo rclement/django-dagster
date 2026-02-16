@@ -706,6 +706,30 @@ class TestRunListView:
         assert resp.status_code == 200
 
     @patch("django_dagster.admin.client.get_runs")
+    def test_sort_by_invalid_key(
+        self,
+        mock_get_runs: MagicMock,
+        mock_get_jobs: MagicMock,
+        staff_client: Client,
+    ) -> None:
+        """When the sort key is not in SORT_KEYS, runs are returned unsorted."""
+        mock_get_jobs.return_value = []
+        mock_get_runs.return_value = [
+            {
+                "runId": "run-a",
+                "jobName": "job",
+                "status": "SUCCESS",
+                "startTime": None,
+                "endTime": None,
+                "tags": [],
+            },
+        ]
+
+        resp = staff_client.get(reverse(RUN_URLS["changelist"]) + "?o=bogus_field")
+
+        assert resp.status_code == 200
+
+    @patch("django_dagster.admin.client.get_runs")
     def test_job_filter_sidebar(
         self,
         mock_get_runs: MagicMock,
@@ -927,6 +951,26 @@ class TestRunDetailView:
 
         assert resp.status_code == 200
         # Should still render without event logs
+        assert b"Event Log" not in resp.content
+
+    @patch("django_dagster.admin.client.get_run_events")
+    @patch("django_dagster.admin.client.get_run")
+    def test_event_logs_none_response(
+        self,
+        mock_get_run: MagicMock,
+        mock_get_events: MagicMock,
+        mock_get_runs: MagicMock,
+        staff_client: Client,
+    ) -> None:
+        """When get_run_events returns None, page renders without event logs."""
+        mock_get_run.return_value = self._make_run()
+        mock_get_runs.return_value = []
+        mock_get_events.return_value = None
+
+        run_id = "abc12345-def0-1234-5678-abcdef012345"
+        resp = staff_client.get(reverse(RUN_URLS["change"], args=[run_id]))
+
+        assert resp.status_code == 200
         assert b"Event Log" not in resp.content
 
     @patch("django_dagster.admin.client.get_run")
