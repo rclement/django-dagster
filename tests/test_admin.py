@@ -12,13 +12,15 @@ from django.urls import reverse
 from django_dagster.admin import DagsterJobAdmin, DagsterRunAdmin, _DagsterAdminBase
 from django_dagster.models import DagsterJob, DagsterRun
 
-pytestmark = pytest.mark.django_db
-
-
 @pytest.fixture
 def perms_enabled(settings: Any) -> None:
     """Enable DAGSTER_PERMISSIONS_ENABLED for the test."""
     settings.DAGSTER_PERMISSIONS_ENABLED = True
+
+
+@pytest.fixture(autouse=True)
+def enable_db_access_for_all_tests(db: Any) -> None:
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +118,7 @@ def test_auth_required__anonymous_reexecute(client: Client) -> None:
     url = reverse(RUN_URLS["reexecute"], args=["abc123"])
     assert client.post(url).status_code == 302
 
-def test_auth_required__non_staff_redirected(client: Client, db: Any) -> None:
+def test_auth_required__non_staff_redirected(client: Client) -> None:
     User.objects.create_user("regular", password="password")
     client.login(username="regular", password="password")
     assert client.get(reverse(JOB_URLS["changelist"])).status_code == 302
@@ -1209,28 +1211,28 @@ def test_admin_index__jobs_no_add_link(staff_client: Client) -> None:
 # -- No permissions -> no access ------------------------------------------
 
 @pytest.mark.usefixtures("perms_enabled")
-def test_permissions_enabled__staff_no_perms_job_list_forbidden(client: Client, db: Any) -> None:
+def test_permissions_enabled__staff_no_perms_job_list_forbidden(client: Client) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse(JOB_URLS["changelist"]))
     assert resp.status_code == 403
 
 @pytest.mark.usefixtures("perms_enabled")
-def test_permissions_enabled__staff_no_perms_run_list_forbidden(client: Client, db: Any) -> None:
+def test_permissions_enabled__staff_no_perms_run_list_forbidden(client: Client) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse(RUN_URLS["changelist"]))
     assert resp.status_code == 403
 
 @pytest.mark.usefixtures("perms_enabled")
-def test_permissions_enabled__staff_no_perms_job_detail_forbidden(client: Client, db: Any) -> None:
+def test_permissions_enabled__staff_no_perms_job_detail_forbidden(client: Client) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
     assert resp.status_code == 403
 
 @pytest.mark.usefixtures("perms_enabled")
-def test_permissions_enabled__staff_no_perms_run_detail_forbidden(client: Client, db: Any) -> None:
+def test_permissions_enabled__staff_no_perms_run_detail_forbidden(client: Client) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse(RUN_URLS["change"], args=["some-run-id"]))
@@ -1537,7 +1539,7 @@ def test_permissions_enabled__viewer_sees_dagster_in_index(viewer_client: Client
     assert b"Dagster" in resp.content
 
 @pytest.mark.usefixtures("perms_enabled")
-def test_permissions_enabled__no_perms_no_dagster_in_index(client: Client, db: Any) -> None:
+def test_permissions_enabled__no_perms_no_dagster_in_index(client: Client) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse("admin:index"))
