@@ -53,7 +53,6 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "tests.fixtures.settings"
 pythonpath = ["."]
 
 [tool.mypy]
@@ -71,7 +70,6 @@ omit = ["django_dagster/migrations/*", "django_dagster/urls.py"]
 exclude_lines = ["pragma: no cover", "if __name__"]
 
 [tool.django-stubs]
-django_settings_module = "tests.fixtures.settings"
 
 [build-system]
 requires = ["hatchling"]

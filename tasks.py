@@ -34,7 +34,7 @@ def lint(ctx: Context) -> None:
 
 @task
 def typing(ctx: Context) -> None:
-    ctx.run(f"mypy {app_path} {tests_path}", echo=True, pty=True)
+    ctx.run(f"DJANGO_SETTINGS_MODULE=tests.fixtures.settings mypy {app_path} {tests_path}", echo=True, pty=True)
 
 
 @task

@@ -1,11 +1,17 @@
+import os
 from typing import Any
 
-import pytest
-from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
-from django.test import Client
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.fixtures.settings")
 
-from django_dagster.models import DagsterJob, DagsterRun
+import django
+django.setup()
+
+import pytest  # noqa: E402
+from django.contrib.auth.models import Permission, User  # noqa: E402
+from django.contrib.contenttypes.models import ContentType  # noqa: E402
+from django.test import Client  # noqa: E402
+
+from django_dagster.models import DagsterJob, DagsterRun  # noqa: E402
 
 
 @pytest.fixture
