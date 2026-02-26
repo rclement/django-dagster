@@ -4,14 +4,24 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from django_dagster.client import (
+    _parse_timestamp,
+    cancel_run,
+    get_client,
+    get_job_default_run_config,
+    get_jobs,
+    get_run,
+    get_run_events,
+    get_runs,
+    reexecute_run,
+    submit_job,
+)
 from tests.conftest import make_run_detail_response
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
 def test_get_client_parses_url(mock_cls: MagicMock, settings: Any) -> None:
     settings.DAGSTER_URL = "https://dagster.example.com:8080"
-
-    from django_dagster.client import get_client
 
     get_client()
     mock_cls.assert_called_once_with(
@@ -24,8 +34,6 @@ def test_get_client_parses_url(mock_cls: MagicMock, settings: Any) -> None:
 @patch("django_dagster.client.DagsterGraphQLClient")
 def test_get_client_http_defaults(mock_cls: MagicMock, settings: Any) -> None:
     settings.DAGSTER_URL = "http://localhost:3000"
-
-    from django_dagster.client import get_client
 
     get_client()
     mock_cls.assert_called_once_with(
@@ -42,8 +50,6 @@ def test_get_jobs(
     mock_client = MagicMock()
     mock_client._execute.return_value = graphql_repositories_response
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import get_jobs
 
     jobs = get_jobs()
 
@@ -69,8 +75,6 @@ def test_get_runs(mock_cls: MagicMock, graphql_runs_response: dict[str, Any]) ->
     mock_client._execute.return_value = graphql_runs_response
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_runs
-
     runs = get_runs()
 
     assert len(runs) == 2
@@ -88,8 +92,6 @@ def test_get_runs_with_filters(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client._execute.return_value = {"runsOrError": {"results": []}}
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import get_runs
 
     get_runs(job_name="etl_job", statuses=["FAILURE"], cursor="some-cursor", limit=10)
 
@@ -111,8 +113,6 @@ def test_get_runs_no_filter_key_when_empty(mock_cls: MagicMock) -> None:
     mock_client._execute.return_value = {"runsOrError": {"results": []}}
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_runs
-
     get_runs()
 
     call_args = mock_client._execute.call_args
@@ -128,8 +128,6 @@ def test_get_run(
     mock_client = MagicMock()
     mock_client._execute.return_value = graphql_run_detail_response
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import get_run
 
     run = get_run("abc12345-def0-1234-5678-abcdef012345")
     assert run is not None
@@ -150,8 +148,6 @@ def test_get_run_not_found(
     mock_client._execute.return_value = graphql_run_not_found_response
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_run
-
     result = get_run("nonexistent")
     assert result is None
 
@@ -167,8 +163,6 @@ def test_get_run_python_error(mock_cls: MagicMock) -> None:
     }
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_run
-
     with pytest.raises(Exception, match="Something broke"):
         get_run("some-id")
 
@@ -178,8 +172,6 @@ def test_submit_job(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client.submit_job_execution.return_value = "new-run-id-123"
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import submit_job
 
     run_id = submit_job(
         "etl_job",
@@ -202,8 +194,6 @@ def test_cancel_run(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import cancel_run
-
     cancel_run("abc123")
     mock_client.terminate_run.assert_called_once_with("abc123")
 
@@ -218,8 +208,6 @@ def test_reexecute_run(mock_cls: MagicMock) -> None:
     )
     mock_client.submit_job_execution.return_value = "new-run-id"
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import reexecute_run
 
     new_id = reexecute_run("original-run-id")
 
@@ -242,8 +230,6 @@ def test_reexecute_run_not_found(
     mock_client._execute.return_value = graphql_run_not_found_response
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import reexecute_run
-
     with pytest.raises(ValueError, match="not found"):
         reexecute_run("nonexistent")
 
@@ -258,8 +244,6 @@ def test_reexecute_run_empty_config(mock_cls: MagicMock) -> None:
     mock_client._execute.return_value = response
     mock_client.submit_job_execution.return_value = "new-id"
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import reexecute_run
 
     reexecute_run("some-id")
 
@@ -283,8 +267,6 @@ def test_reexecute_run_no_config(mock_cls: MagicMock) -> None:
     mock_client.submit_job_execution.return_value = "new-id"
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import reexecute_run
-
     reexecute_run("some-id")
 
     mock_client.submit_job_execution.assert_called_once_with(
@@ -303,8 +285,6 @@ def test_get_run_events(
     mock_client = MagicMock()
     mock_client._execute.return_value = graphql_run_events_response
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import get_run_events
 
     result = get_run_events("abc123")
 
@@ -330,8 +310,6 @@ def test_get_run_events_not_found(mock_cls: MagicMock) -> None:
     }
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_run_events
-
     result = get_run_events("nonexistent")
     assert result is None
 
@@ -347,8 +325,6 @@ def test_get_run_events_python_error(mock_cls: MagicMock) -> None:
     }
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_run_events
-
     with pytest.raises(Exception, match="Something broke"):
         get_run_events("some-id")
 
@@ -361,8 +337,6 @@ def test_get_run_events_no_limit(
     mock_client = MagicMock()
     mock_client._execute.return_value = graphql_run_events_response
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import get_run_events
 
     get_run_events("abc123", limit=0)
 
@@ -388,8 +362,6 @@ def test_get_job_default_run_config(
     ]
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_job_default_run_config
-
     config = get_job_default_run_config("etl_job")
 
     assert config == {"ops": {"my_op": {"config": {"param": "value"}}}}
@@ -414,8 +386,6 @@ def test_get_job_default_run_config_empty(
     ]
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_job_default_run_config
-
     config = get_job_default_run_config("etl_job")
 
     assert config == {}
@@ -433,8 +403,6 @@ def test_get_job_default_run_config_no_yaml(
     ]
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_job_default_run_config
-
     config = get_job_default_run_config("etl_job")
 
     assert config == {}
@@ -447,8 +415,6 @@ def test_get_job_default_run_config_unknown_job(
     mock_client = MagicMock()
     mock_client._execute.return_value = graphql_repositories_response
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import get_job_default_run_config
 
     config = get_job_default_run_config("nonexistent_job")
 
@@ -463,8 +429,6 @@ def test_get_run_events_with_cursor(
     mock_client = MagicMock()
     mock_client._execute.return_value = graphql_run_events_response
     mock_cls.return_value = mock_client
-
-    from django_dagster.client import get_run_events
 
     get_run_events("abc123", cursor="some-cursor")
 
@@ -494,8 +458,6 @@ def test_get_run_events_without_typename(mock_cls: MagicMock) -> None:
     }
     mock_cls.return_value = mock_client
 
-    from django_dagster.client import get_run_events
-
     result = get_run_events("abc123")
 
     assert result is not None
@@ -506,13 +468,9 @@ def test_get_run_events_without_typename(mock_cls: MagicMock) -> None:
 
 
 def test_parse_timestamp_none() -> None:
-    from django_dagster.client import _parse_timestamp
-
     assert _parse_timestamp(None) is None
 
 
 def test_parse_timestamp_converts() -> None:
-    from django_dagster.client import _parse_timestamp
-
     result = _parse_timestamp(1700000000.0)
     assert result == datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc)
