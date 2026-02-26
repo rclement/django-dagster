@@ -70,6 +70,7 @@ omit = ["django_dagster/migrations/*", "django_dagster/urls.py"]
 exclude_lines = ["pragma: no cover", "if __name__"]
 
 [tool.django-stubs]
+strict_settings = true
 
 [build-system]
 requires = ["hatchling"]
