@@ -12,6 +12,8 @@ from django.urls import reverse
 from django_dagster.admin import DagsterJobAdmin, DagsterRunAdmin, _DagsterAdminBase
 from django_dagster.models import DagsterJob, DagsterRun
 
+pytestmark = pytest.mark.django_db
+
 
 @pytest.fixture
 def perms_enabled(settings: Any) -> None:
@@ -93,7 +95,7 @@ def test_dagster_run_ui_url_none() -> None:
 def test_auth_required__anonymous_job_changelist(client: Client) -> None:
     assert client.get(reverse(JOB_URLS["changelist"])).status_code == 302
 
-def test_anonymous_job_trigger(client: Client) -> None:
+def test_auth_required__anonymous_job_trigger(client: Client) -> None:
     assert (
         client.get(reverse(JOB_URLS["trigger"], args=["etl_job"])).status_code
         == 302
@@ -102,7 +104,7 @@ def test_anonymous_job_trigger(client: Client) -> None:
 def test_auth_required__anonymous_run_changelist(client: Client) -> None:
     assert client.get(reverse(RUN_URLS["changelist"])).status_code == 302
 
-def test_anonymous_run_change(client: Client) -> None:
+def test_auth_required__anonymous_run_change(client: Client) -> None:
     url = reverse(RUN_URLS["change"], args=["abc123"])
     assert client.get(url).status_code == 302
 
@@ -110,7 +112,7 @@ def test_auth_required__anonymous_cancel(client: Client) -> None:
     url = reverse(RUN_URLS["cancel"], args=["abc123"])
     assert client.post(url).status_code == 302
 
-def test_anonymous_reexecute(client: Client) -> None:
+def test_auth_required__anonymous_reexecute(client: Client) -> None:
     url = reverse(RUN_URLS["reexecute"], args=["abc123"])
     assert client.post(url).status_code == 302
 
@@ -145,7 +147,7 @@ def test_job_list_view__renders_jobs(mock_get_jobs: MagicMock, staff_client: Cli
     assert b"Daily ETL" in resp.content
 
 @patch("django_dagster.admin.client.get_jobs")
-def test_empty_jobs(mock_get_jobs: MagicMock, staff_client: Client) -> None:
+def test_job_list_view__empty_jobs(mock_get_jobs: MagicMock, staff_client: Client) -> None:
     mock_get_jobs.return_value = []
 
     resp = staff_client.get(reverse(JOB_URLS["changelist"]))
@@ -189,7 +191,7 @@ def test_job_list_view__sort_by_name(mock_get_jobs: MagicMock, staff_client: Cli
     assert content.index("a_job") < content.index("b_job")
 
 @patch("django_dagster.admin.client.get_jobs")
-def test_config_recap_shown(mock_get_jobs: MagicMock, staff_client: Client
+def test_job_list_view__config_recap_shown(mock_get_jobs: MagicMock, staff_client: Client
 ) -> None:
     mock_get_jobs.return_value = []
 
@@ -227,6 +229,7 @@ def test_job_list_view__dagster_ui_links_shown(mock_get_jobs: MagicMock, staff_c
 # ---------------------------------------------------------------------------
 
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_job_detail_view__renders_detail(mock_get_jobs: MagicMock,
     mock_get_runs: MagicMock,
@@ -251,6 +254,7 @@ def test_job_detail_view__renders_detail(mock_get_jobs: MagicMock,
     assert b"repo" in resp.content
     assert b"loc" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_job_detail_view__has_trigger_button(mock_get_jobs: MagicMock,
     mock_get_runs: MagicMock,
@@ -265,6 +269,7 @@ def test_job_detail_view__has_trigger_button(mock_get_jobs: MagicMock,
 
     assert b"Trigger New Run" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_job_detail_view__has_view_runs_button(mock_get_jobs: MagicMock,
     mock_get_runs: MagicMock,
@@ -279,6 +284,7 @@ def test_job_detail_view__has_view_runs_button(mock_get_jobs: MagicMock,
 
     assert b"View Runs" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_job_detail_view__not_found_redirects(mock_get_jobs: MagicMock,
     mock_get_runs: MagicMock,
@@ -298,6 +304,7 @@ def test_job_detail_view__not_found_redirects(mock_get_jobs: MagicMock,
     assert resp.status_code == 302
     assert reverse(JOB_URLS["changelist"]) in resp.url  # type: ignore[attr-defined]
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_job_detail_view__connection_error_redirects(mock_get_jobs: MagicMock,
     mock_get_runs: MagicMock,
@@ -309,6 +316,7 @@ def test_job_detail_view__connection_error_redirects(mock_get_jobs: MagicMock,
 
     assert resp.status_code == 302
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_job_detail_view__uses_fieldset_layout(mock_get_jobs: MagicMock,
     mock_get_runs: MagicMock,
@@ -329,6 +337,7 @@ def test_job_detail_view__uses_fieldset_layout(mock_get_jobs: MagicMock,
     assert b"fieldset" in resp.content
     assert b"submit-row" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_job_detail_view__dagster_ui_link_shown(mock_get_jobs: MagicMock,
     mock_get_runs: MagicMock,
@@ -350,6 +359,7 @@ def test_job_detail_view__dagster_ui_link_shown(mock_get_jobs: MagicMock,
     assert b"http://localhost:3000/locations/repo@loc/jobs/etl_job" in resp.content
     assert b"View in Dagster UI" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_job_detail_view__recent_runs_shown(mock_get_jobs: MagicMock,
     mock_get_runs: MagicMock,
@@ -376,6 +386,7 @@ def test_job_detail_view__recent_runs_shown(mock_get_jobs: MagicMock,
     assert b"abc12345-def0-1234-5678-abcdef012345" in resp.content
     mock_get_runs.assert_called_once_with(job_name="etl_job", limit=10)
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_job_detail_view__recent_runs_fetch_error(mock_get_jobs: MagicMock,
     mock_get_runs: MagicMock,
@@ -402,7 +413,7 @@ def _trigger_url(job_name: str = "etl_job") -> str:
     return reverse(JOB_URLS["trigger"], args=[job_name])
 
 @patch("django_dagster.admin.client.get_job_default_run_config")
-def test_get_renders_form(mock_default_config: MagicMock, staff_client: Client
+def test_trigger_job_view__get_renders_form(mock_default_config: MagicMock, staff_client: Client
 ) -> None:
     mock_default_config.return_value = {}
 
@@ -500,7 +511,7 @@ def test_trigger_job_view__post_invalid_json(staff_client: Client) -> None:
     assert b"Invalid JSON config" in resp.content
 
 @patch("django_dagster.admin.client.submit_job")
-def test_post_dagster_error_preserves_form(mock_submit: MagicMock, staff_client: Client
+def test_trigger_job_view__post_dagster_error_preserves_form(mock_submit: MagicMock, staff_client: Client
 ) -> None:
     mock_submit.side_effect = Exception("JobNotFoundError")
 
@@ -521,6 +532,7 @@ def test_post_dagster_error_preserves_form(mock_submit: MagicMock, staff_client:
 # ---------------------------------------------------------------------------
 
 
+@patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_run_list_view__renders_runs(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
@@ -546,6 +558,7 @@ def test_run_list_view__renders_runs(mock_get_runs: MagicMock,
     assert b"SUCCESS" in resp.content
     mock_get_runs.assert_called_once_with(job_name=None, statuses=None)
 
+@patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_run_list_view__filters(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
@@ -561,6 +574,7 @@ def test_run_list_view__filters(mock_get_runs: MagicMock,
     assert resp.status_code == 200
     mock_get_runs.assert_called_once_with(job_name="etl_job", statuses=["FAILURE"])
 
+@patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_run_list_view__connection_error(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
@@ -574,6 +588,7 @@ def test_run_list_view__connection_error(mock_get_runs: MagicMock,
     assert resp.status_code == 200
     assert b"Failed to connect to Dagster" in resp.content
 
+@patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_run_list_view__run_links_to_detail(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
@@ -597,6 +612,7 @@ def test_run_list_view__run_links_to_detail(mock_get_runs: MagicMock,
     change_url = reverse(RUN_URLS["change"], args=[run_id])
     assert change_url.encode() in resp.content
 
+@patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_run_list_view__dagster_ui_links_shown(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
@@ -620,6 +636,7 @@ def test_run_list_view__dagster_ui_links_shown(mock_get_runs: MagicMock,
     assert resp.status_code == 200
     assert f"http://localhost:3000/runs/{run_id}".encode() in resp.content
 
+@patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_run_list_view__sort_by_status(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
@@ -649,6 +666,7 @@ def test_run_list_view__sort_by_status(mock_get_runs: MagicMock,
 
     assert resp.status_code == 200
 
+@patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_run_list_view__sort_by_invalid_key(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
@@ -671,6 +689,7 @@ def test_run_list_view__sort_by_invalid_key(mock_get_runs: MagicMock,
 
     assert resp.status_code == 200
 
+@patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_run_list_view__job_filter_sidebar(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
@@ -695,6 +714,7 @@ def test_run_list_view__job_filter_sidebar(mock_get_runs: MagicMock,
     assert b"etl_job" in resp.content
     assert b"report_job" in resp.content
 
+@patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_run_list_view__job_sidebar_fetch_error(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
@@ -734,8 +754,9 @@ def _make_run(status: str = "SUCCESS") -> dict[str, Any]:
         "__typename": "Run",
     }
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
-def test_renders_detail(mock_get_run: MagicMock,
+def test_run_detail_view__renders_detail(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
     staff_client: Client,
 ) -> None:
@@ -757,6 +778,7 @@ def test_renders_detail(mock_get_run: MagicMock,
     # "All Runs" is a proper button
     assert b"All Runs" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__dagster_ui_link_shown(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
@@ -772,6 +794,7 @@ def test_run_detail_view__dagster_ui_link_shown(mock_get_run: MagicMock,
     assert f"http://localhost:3000/runs/{run_id}".encode() in resp.content
     assert b"View in Dagster UI" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__cancel_button_shown_for_running(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
@@ -786,6 +809,7 @@ def test_run_detail_view__cancel_button_shown_for_running(mock_get_run: MagicMoc
     assert resp.status_code == 200
     assert b"Cancel Run" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__reexecute_button_shown_for_failed(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
@@ -801,6 +825,7 @@ def test_run_detail_view__reexecute_button_shown_for_failed(mock_get_run: MagicM
     assert b"Re-execute" in resp.content
     assert b"Cancel Run" not in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__reexecute_button_shown_for_success(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
@@ -816,6 +841,7 @@ def test_run_detail_view__reexecute_button_shown_for_success(mock_get_run: Magic
     assert b"Cancel Run" not in resp.content
     assert b"Re-execute" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run_events")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__event_logs_shown(mock_get_run: MagicMock,
@@ -856,6 +882,7 @@ def test_run_detail_view__event_logs_shown(mock_get_run: MagicMock,
     assert b"RunStartEvent" in resp.content
     assert b"my_op" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run_events")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__event_logs_error_graceful(mock_get_run: MagicMock,
@@ -874,6 +901,7 @@ def test_run_detail_view__event_logs_error_graceful(mock_get_run: MagicMock,
     # Should still render without event logs
     assert b"Event Log" not in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run_events")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__event_logs_none_response(mock_get_run: MagicMock,
@@ -892,6 +920,7 @@ def test_run_detail_view__event_logs_none_response(mock_get_run: MagicMock,
     assert resp.status_code == 200
     assert b"Event Log" not in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__not_found_redirects(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
@@ -904,6 +933,7 @@ def test_run_detail_view__not_found_redirects(mock_get_run: MagicMock,
     assert resp.status_code == 302
     assert reverse(RUN_URLS["changelist"]) in resp.url  # type: ignore[attr-defined]
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__error_redirects(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
@@ -915,6 +945,7 @@ def test_run_detail_view__error_redirects(mock_get_run: MagicMock,
 
     assert resp.status_code == 302
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__related_runs_shown(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
@@ -948,6 +979,7 @@ def test_run_detail_view__related_runs_shown(mock_get_run: MagicMock,
     assert b"zzz99999-0000-1111-2222-333344445555" in resp.content
     mock_get_runs.assert_called_once_with(job_name="etl_job", limit=10)
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__related_runs_fetch_error(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
@@ -963,6 +995,7 @@ def test_run_detail_view__related_runs_fetch_error(mock_get_run: MagicMock,
     assert resp.status_code == 200
     assert b"etl_job" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__dagster_ui_job_link_shown(mock_get_run: MagicMock,
@@ -988,6 +1021,7 @@ def test_run_detail_view__dagster_ui_job_link_shown(mock_get_run: MagicMock,
     assert resp.status_code == 200
     assert b"my_location/jobs/etl_job" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__dagster_ui_job_not_found(mock_get_run: MagicMock,
@@ -1013,6 +1047,7 @@ def test_run_detail_view__dagster_ui_job_not_found(mock_get_run: MagicMock,
     assert resp.status_code == 200
     assert b"my_location/jobs/etl_job" not in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__dagster_ui_job_lookup_error(mock_get_run: MagicMock,
@@ -1031,6 +1066,7 @@ def test_run_detail_view__dagster_ui_job_lookup_error(mock_get_run: MagicMock,
     assert resp.status_code == 200
     assert b"etl_job" in resp.content
 
+@patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_run_detail_view__no_dagster_url_setting(mock_get_run: MagicMock,
     mock_get_runs: MagicMock,
@@ -1064,7 +1100,7 @@ def test_cancel_run_view__cancel_success(mock_cancel: MagicMock, staff_client: C
     mock_cancel.assert_called_once_with(run_id)
 
 @patch("django_dagster.admin.client.cancel_run")
-def test_cancel_redirects_to_run_detail(mock_cancel: MagicMock, staff_client: Client
+def test_cancel_run_view__cancel_redirects_to_run_detail(mock_cancel: MagicMock, staff_client: Client
 ) -> None:
     run_id = "abc123"
     resp = staff_client.post(reverse(RUN_URLS["cancel"], args=[run_id]))
@@ -1082,7 +1118,7 @@ def test_cancel_run_view__cancel_error(mock_cancel: MagicMock, staff_client: Cli
     assert resp.status_code == 302
     assert run_id in resp.url  # type: ignore[attr-defined]
 
-def test_cancel_get_redirects(staff_client: Client) -> None:
+def test_cancel_run_view__cancel_get_redirects(staff_client: Client) -> None:
     """GET should not cancel, just redirect."""
     run_id = "abc123"
     resp = staff_client.get(reverse(RUN_URLS["cancel"], args=[run_id]))
@@ -1149,7 +1185,7 @@ def test_admin_index__dagster_section_with_both_models(staff_client: Client) -> 
     assert b"Jobs" in resp.content
     assert b"Runs" in resp.content
 
-def test_dagster_app_index(staff_client: Client) -> None:
+def test_admin_index__dagster_app_index(staff_client: Client) -> None:
     resp = staff_client.get(reverse("admin:app_list", args=["django_dagster"]))
 
     assert resp.status_code == 200
@@ -1168,29 +1204,33 @@ def test_admin_index__jobs_no_add_link(staff_client: Client) -> None:
 # ---------------------------------------------------------------------------
 
 
-"""When DAGSTER_PERMISSIONS_ENABLED=True, Django permissions are enforced."""
+# When DAGSTER_PERMISSIONS_ENABLED=True, Django permissions are enforced.
 
 # -- No permissions -> no access ------------------------------------------
 
+@pytest.mark.usefixtures("perms_enabled")
 def test_permissions_enabled__staff_no_perms_job_list_forbidden(client: Client, db: Any) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse(JOB_URLS["changelist"]))
     assert resp.status_code == 403
 
-def test_staff_no_perms_run_list_forbidden(client: Client, db: Any) -> None:
+@pytest.mark.usefixtures("perms_enabled")
+def test_permissions_enabled__staff_no_perms_run_list_forbidden(client: Client, db: Any) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse(RUN_URLS["changelist"]))
     assert resp.status_code == 403
 
+@pytest.mark.usefixtures("perms_enabled")
 def test_permissions_enabled__staff_no_perms_job_detail_forbidden(client: Client, db: Any) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse(JOB_URLS["change"], args=["etl_job"]))
     assert resp.status_code == 403
 
-def test_staff_no_perms_run_detail_forbidden(client: Client, db: Any) -> None:
+@pytest.mark.usefixtures("perms_enabled")
+def test_permissions_enabled__staff_no_perms_run_detail_forbidden(client: Client, db: Any) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse(RUN_URLS["change"], args=["some-run-id"]))
@@ -1198,6 +1238,7 @@ def test_staff_no_perms_run_detail_forbidden(client: Client, db: Any) -> None:
 
 # -- View-only: can see but cannot trigger/cancel/reexecute ---------------
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_jobs")
 def test_permissions_enabled__viewer_can_see_job_list(mock_get_jobs: MagicMock, viewer_client: Client
 ) -> None:
@@ -1208,6 +1249,7 @@ def test_permissions_enabled__viewer_can_see_job_list(mock_get_jobs: MagicMock, 
     assert resp.status_code == 200
     assert b"etl_job" in resp.content
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_permissions_enabled__viewer_can_see_job_detail(mock_get_jobs: MagicMock,
@@ -1227,12 +1269,14 @@ def test_permissions_enabled__viewer_can_see_job_detail(mock_get_jobs: MagicMock
     assert resp.status_code == 200
     assert b"Trigger New Run" not in resp.content
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_job_default_run_config")
 def test_permissions_enabled__viewer_cannot_trigger_job(mock_cfg: MagicMock, viewer_client: Client
 ) -> None:
     resp = viewer_client.get(reverse(JOB_URLS["trigger"], args=["etl_job"]))
     assert resp.status_code == 403
 
+@pytest.mark.usefixtures("perms_enabled")
 def test_permissions_enabled__viewer_cannot_trigger_job_post(viewer_client: Client) -> None:
     resp = viewer_client.post(
         reverse(JOB_URLS["trigger"], args=["etl_job"]),
@@ -1240,9 +1284,10 @@ def test_permissions_enabled__viewer_cannot_trigger_job_post(viewer_client: Clie
     )
     assert resp.status_code == 403
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
-def test_viewer_can_see_run_list(mock_get_runs: MagicMock,
+def test_permissions_enabled__viewer_can_see_run_list(mock_get_runs: MagicMock,
     mock_get_jobs: MagicMock,
     viewer_client: Client,
 ) -> None:
@@ -1251,6 +1296,7 @@ def test_viewer_can_see_run_list(mock_get_runs: MagicMock,
     resp = viewer_client.get(reverse(RUN_URLS["changelist"]))
     assert resp.status_code == 200
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_permissions_enabled__viewer_sees_no_cancel_button(mock_get_run: MagicMock,
@@ -1272,6 +1318,7 @@ def test_permissions_enabled__viewer_sees_no_cancel_button(mock_get_run: MagicMo
     assert resp.status_code == 200
     assert b"Cancel Run" not in resp.content
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_permissions_enabled__viewer_sees_no_reexecute_button(mock_get_run: MagicMock,
@@ -1293,16 +1340,19 @@ def test_permissions_enabled__viewer_sees_no_reexecute_button(mock_get_run: Magi
     assert resp.status_code == 200
     assert b"Re-execute" not in resp.content
 
+@pytest.mark.usefixtures("perms_enabled")
 def test_permissions_enabled__viewer_cannot_cancel_run(viewer_client: Client) -> None:
     resp = viewer_client.post(reverse(RUN_URLS["cancel"], args=["abc123"]))
     assert resp.status_code == 403
 
-def test_viewer_cannot_reexecute_run(viewer_client: Client) -> None:
+@pytest.mark.usefixtures("perms_enabled")
+def test_permissions_enabled__viewer_cannot_reexecute_run(viewer_client: Client) -> None:
     resp = viewer_client.post(reverse(RUN_URLS["reexecute"], args=["abc123"]))
     assert resp.status_code == 403
 
 # -- Full permissions: can do everything ----------------------------------
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_job_default_run_config")
 def test_permissions_enabled__full_perm_can_trigger(mock_cfg: MagicMock, full_perm_client: Client
 ) -> None:
@@ -1310,6 +1360,7 @@ def test_permissions_enabled__full_perm_can_trigger(mock_cfg: MagicMock, full_pe
     resp = full_perm_client.get(reverse(JOB_URLS["trigger"], args=["etl_job"]))
     assert resp.status_code == 200
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.cancel_run")
 def test_permissions_enabled__full_perm_can_cancel(mock_cancel: MagicMock, full_perm_client: Client
 ) -> None:
@@ -1317,6 +1368,7 @@ def test_permissions_enabled__full_perm_can_cancel(mock_cancel: MagicMock, full_
     assert resp.status_code == 302
     mock_cancel.assert_called_once_with("abc123")
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.reexecute_run")
 def test_permissions_enabled__full_perm_can_reexecute(mock_reexecute: MagicMock, full_perm_client: Client
 ) -> None:
@@ -1325,6 +1377,7 @@ def test_permissions_enabled__full_perm_can_reexecute(mock_reexecute: MagicMock,
     assert resp.status_code == 302
     mock_reexecute.assert_called_once_with("abc123")
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_permissions_enabled__full_perm_sees_trigger_button(mock_get_jobs: MagicMock,
@@ -1341,6 +1394,7 @@ def test_permissions_enabled__full_perm_sees_trigger_button(mock_get_jobs: Magic
 
 # -- Superuser: always has access -----------------------------------------
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_jobs")
 def test_permissions_enabled__superuser_can_see_jobs(mock_get_jobs: MagicMock, superuser_client: Client
 ) -> None:
@@ -1348,6 +1402,7 @@ def test_permissions_enabled__superuser_can_see_jobs(mock_get_jobs: MagicMock, s
     resp = superuser_client.get(reverse(JOB_URLS["changelist"]))
     assert resp.status_code == 200
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_job_default_run_config")
 def test_permissions_enabled__superuser_can_trigger(mock_cfg: MagicMock, superuser_client: Client
 ) -> None:
@@ -1355,6 +1410,7 @@ def test_permissions_enabled__superuser_can_trigger(mock_cfg: MagicMock, superus
     resp = superuser_client.get(reverse(JOB_URLS["trigger"], args=["etl_job"]))
     assert resp.status_code == 200
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.cancel_run")
 def test_permissions_enabled__superuser_can_cancel(mock_cancel: MagicMock, superuser_client: Client
 ) -> None:
@@ -1363,6 +1419,7 @@ def test_permissions_enabled__superuser_can_cancel(mock_cancel: MagicMock, super
 
 # -- Dagster UI links hidden without access_dagster_ui perm ---------------
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_jobs")
 def test_permissions_enabled__viewer_job_list_no_dagster_ui_links(mock_get_jobs: MagicMock, viewer_client: Client
 ) -> None:
@@ -1374,6 +1431,7 @@ def test_permissions_enabled__viewer_job_list_no_dagster_ui_links(mock_get_jobs:
     assert b"Dagster UI" not in resp.content
     assert "\u2197".encode() not in resp.content
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_jobs")
 def test_permissions_enabled__viewer_job_detail_no_dagster_ui_links(mock_get_jobs: MagicMock,
@@ -1393,6 +1451,7 @@ def test_permissions_enabled__viewer_job_detail_no_dagster_ui_links(mock_get_job
     assert resp.status_code == 200
     assert b"View in Dagster UI" not in resp.content
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_jobs")
 @patch("django_dagster.admin.client.get_runs")
 def test_permissions_enabled__viewer_run_list_no_dagster_ui_links(mock_get_runs: MagicMock,
@@ -1414,6 +1473,7 @@ def test_permissions_enabled__viewer_run_list_no_dagster_ui_links(mock_get_runs:
     assert resp.status_code == 200
     assert b"Dagster UI" not in resp.content
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_permissions_enabled__viewer_run_detail_no_dagster_ui_links(mock_get_run: MagicMock,
@@ -1435,6 +1495,7 @@ def test_permissions_enabled__viewer_run_detail_no_dagster_ui_links(mock_get_run
     assert resp.status_code == 200
     assert b"View in Dagster UI" not in resp.content
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_jobs")
 def test_permissions_enabled__full_perm_sees_dagster_ui_links(mock_get_jobs: MagicMock, full_perm_client: Client
 ) -> None:
@@ -1445,6 +1506,7 @@ def test_permissions_enabled__full_perm_sees_dagster_ui_links(mock_get_jobs: Mag
     assert resp.status_code == 200
     assert b"Dagster UI" in resp.content
 
+@pytest.mark.usefixtures("perms_enabled")
 @patch("django_dagster.admin.client.get_runs")
 @patch("django_dagster.admin.client.get_run")
 def test_permissions_enabled__full_perm_sees_dagster_ui_links_run_detail(mock_get_run: MagicMock,
@@ -1468,12 +1530,14 @@ def test_permissions_enabled__full_perm_sees_dagster_ui_links_run_detail(mock_ge
 
 # -- Admin index ----------------------------------------------------------
 
+@pytest.mark.usefixtures("perms_enabled")
 def test_permissions_enabled__viewer_sees_dagster_in_index(viewer_client: Client) -> None:
     resp = viewer_client.get(reverse("admin:index"))
     assert resp.status_code == 200
     assert b"Dagster" in resp.content
 
-def test_no_perms_no_dagster_in_index(client: Client, db: Any) -> None:
+@pytest.mark.usefixtures("perms_enabled")
+def test_permissions_enabled__no_perms_no_dagster_in_index(client: Client, db: Any) -> None:
     User.objects.create_user("noperms", password="pw", is_staff=True)
     client.login(username="noperms", password="pw")
     resp = client.get(reverse("admin:index"))
@@ -1482,7 +1546,7 @@ def test_no_perms_no_dagster_in_index(client: Client, db: Any) -> None:
     assert b"django_dagster" not in resp.content
 
 
-"""Default (DAGSTER_PERMISSIONS_ENABLED=False): all staff = full access."""
+# Default (DAGSTER_PERMISSIONS_ENABLED=False): all staff = full access.
 
 def test_permissions_disabled__staff_can_access_without_explicit_perms(staff_client: Client
 ) -> None:
@@ -1504,24 +1568,3 @@ def test_permissions_disabled__staff_can_cancel_without_explicit_perms(mock_canc
 ) -> None:
     resp = staff_client.post(reverse(RUN_URLS["cancel"], args=["abc123"]))
     assert resp.status_code == 302
-
-
-for _name, _obj in list(globals().items()):
-    if callable(_obj) and (
-        _name.startswith("test_permissions_enabled__")
-        or _name.startswith("test_staff_no_perms_")
-        or _name == "test_no_perms_no_dagster_in_index"
-        or _name == "test_viewer_can_see_run_list"
-        or _name == "test_viewer_cannot_reexecute_run"
-    ):
-        globals()[_name] = pytest.mark.usefixtures("perms_enabled")(_obj)
-
-for _name, _obj in list(globals().items()):
-    if callable(_obj) and _name.startswith("test_job_detail_view__"):
-        globals()[_name] = patch("django_dagster.admin.client.get_runs")(_obj)
-    elif callable(_obj) and _name.startswith("test_run_list_view__"):
-        globals()[_name] = patch("django_dagster.admin.client.get_jobs")(_obj)
-    elif callable(_obj) and (
-        _name.startswith("test_run_detail_view__") or _name == "test_renders_detail"
-    ):
-        globals()[_name] = patch("django_dagster.admin.client.get_runs")(_obj)
