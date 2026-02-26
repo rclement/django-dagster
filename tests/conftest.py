@@ -1,15 +1,28 @@
-from typing import Any
+from __future__ import annotations
 
+import os
+from typing import TYPE_CHECKING, Any
+
+import django
 import pytest
-from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
-from django.test import Client
 
-from django_dagster.models import DagsterJob, DagsterRun
+if TYPE_CHECKING:
+    from django.contrib.auth.models import User
+    from django.test import Client
+
+    from django_dagster.models import DagsterJob, DagsterRun
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.fixtures.settings")
+
+
+def pytest_configure() -> None:
+    django.setup()
 
 
 @pytest.fixture
 def staff_user(db: Any) -> User:
+    from django.contrib.auth.models import User
+
     return User.objects.create_user(
         username="staff",
         password="password",
@@ -26,6 +39,9 @@ def staff_client(client: Client, staff_user: User) -> Client:
 def _add_perms(
     user: User, model: type[DagsterJob] | type[DagsterRun], codenames: list[str]
 ) -> None:
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+
     ct = ContentType.objects.get_for_model(model)
     for codename in codenames:
         perm = Permission.objects.get(content_type=ct, codename=codename)
@@ -35,6 +51,9 @@ def _add_perms(
 @pytest.fixture
 def viewer_user(db: Any) -> User:
     """Staff user with only view permissions (no action permissions)."""
+    from django.contrib.auth.models import User
+    from django_dagster.models import DagsterJob, DagsterRun
+
     user = User.objects.create_user(
         username="viewer",
         password="password",
@@ -54,6 +73,9 @@ def viewer_client(client: Client, viewer_user: User) -> Client:
 @pytest.fixture
 def full_perm_user(db: Any) -> User:
     """Staff user with all Dagster permissions."""
+    from django.contrib.auth.models import User
+    from django_dagster.models import DagsterJob, DagsterRun
+
     user = User.objects.create_user(
         username="full",
         password="password",
@@ -88,6 +110,8 @@ def full_perm_client(client: Client, full_perm_user: User) -> Client:
 
 @pytest.fixture
 def superuser(db: Any) -> User:
+    from django.contrib.auth.models import User
+
     return User.objects.create_superuser(
         username="admin",
         password="password",

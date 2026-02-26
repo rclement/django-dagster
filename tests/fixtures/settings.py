@@ -18,7 +18,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
 ]
 
-ROOT_URLCONF = "tests.urls"
+ROOT_URLCONF = "tests.fixtures.urls"
 
 DATABASES = {
     "default": {
