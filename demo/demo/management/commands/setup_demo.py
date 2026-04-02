@@ -27,7 +27,11 @@ class Command(BaseCommand):
                 self.style.SUCCESS("Created superuser 'admin' (password: admin)")
             )
 
-        # --- Viewer (staff, view-only + reports) ---
+        job_ct = ContentType.objects.get_for_model(DagsterJob)
+        run_ct = ContentType.objects.get_for_model(DagsterRun)
+        report_ct = ContentType.objects.get_for_model(ReportRequest)
+
+        # --- Viewer (staff, view-only) ---
         viewer, created = User.objects.get_or_create(
             username="viewer",
             defaults={"is_staff": True},
@@ -36,19 +40,12 @@ class Command(BaseCommand):
             viewer.set_password("viewer")
             viewer.save()
 
-        job_ct = ContentType.objects.get_for_model(DagsterJob)
-        run_ct = ContentType.objects.get_for_model(DagsterRun)
-        report_ct = ContentType.objects.get_for_model(ReportRequest)
         viewer.user_permissions.set(
             [
                 Permission.objects.get(content_type=job_ct, codename="view_dagsterjob"),
                 Permission.objects.get(content_type=run_ct, codename="view_dagsterrun"),
-                # Reports app: viewer can browse and create report requests
                 Permission.objects.get(
                     content_type=report_ct, codename="view_reportrequest"
-                ),
-                Permission.objects.get(
-                    content_type=report_ct, codename="add_reportrequest"
                 ),
             ]
         )
@@ -59,14 +56,57 @@ class Command(BaseCommand):
         else:
             self.stdout.write("User 'viewer' already exists, permissions updated.")
 
+        # --- Operator (staff, full Dagster access + reports) ---
+        operator, created = User.objects.get_or_create(
+            username="operator",
+            defaults={"is_staff": True},
+        )
+        if created:
+            operator.set_password("operator")
+            operator.save()
+
+        operator.user_permissions.set(
+            [
+                Permission.objects.get(content_type=job_ct, codename="view_dagsterjob"),
+                Permission.objects.get(
+                    content_type=job_ct, codename="trigger_dagsterjob"
+                ),
+                Permission.objects.get(
+                    content_type=job_ct, codename="access_dagster_ui"
+                ),
+                Permission.objects.get(content_type=run_ct, codename="view_dagsterrun"),
+                Permission.objects.get(
+                    content_type=run_ct, codename="cancel_dagsterrun"
+                ),
+                Permission.objects.get(
+                    content_type=run_ct, codename="reexecute_dagsterrun"
+                ),
+                Permission.objects.get(
+                    content_type=report_ct, codename="view_reportrequest"
+                ),
+                Permission.objects.get(
+                    content_type=report_ct, codename="add_reportrequest"
+                ),
+            ]
+        )
+        if created:
+            self.stdout.write(
+                self.style.SUCCESS("Created staff user 'operator' (password: operator)")
+            )
+        else:
+            self.stdout.write("User 'operator' already exists, permissions updated.")
+
         self.stdout.write()
         self.stdout.write("Demo is ready! Start the server with:")
         self.stdout.write("  python manage.py runserver")
         self.stdout.write()
         self.stdout.write("Login credentials:")
-        self.stdout.write("  admin  / admin   — full access (superuser)")
+        self.stdout.write("  admin    / admin    — full access (superuser)")
         self.stdout.write(
-            "  viewer / viewer  — view-only (cannot trigger, cancel, or re-execute)"
+            "  operator / operator — full Dagster access (trigger, cancel, re-execute)"
+        )
+        self.stdout.write(
+            "  viewer   / viewer   — view-only (cannot trigger, cancel, or re-execute)"
         )
         self.stdout.write()
         self.stdout.write("Try the Reports app (Reports > Report requests) to see how")

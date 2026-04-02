@@ -11,12 +11,6 @@ from django_dagster.admin import DagsterJobAdmin, DagsterRunAdmin, _DagsterAdmin
 from django_dagster.models import DagsterJob, DagsterRun
 
 
-@pytest.fixture
-def perms_enabled(settings: Any) -> None:
-    """Enable DAGSTER_PERMISSIONS_ENABLED for the test."""
-    settings.DAGSTER_PERMISSIONS_ENABLED = True
-
-
 # ---------------------------------------------------------------------------
 # Admin registration
 # ---------------------------------------------------------------------------
@@ -1276,9 +1270,8 @@ class TestAdminIndex:
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("perms_enabled")
-class TestPermissionsEnabled:
-    """When DAGSTER_PERMISSIONS_ENABLED=True, Django permissions are enforced."""
+class TestPermissions:
+    """Django permissions are always enforced."""
 
     # -- No permissions -> no access ------------------------------------------
 
@@ -1628,32 +1621,3 @@ class TestPermissionsEnabled:
         assert resp.status_code == 200
         # The Dagster section should not appear
         assert b"django_dagster" not in resp.content
-
-
-@pytest.mark.django_db
-class TestPermissionsDisabled:
-    """Default (DAGSTER_PERMISSIONS_ENABLED=False): all staff = full access."""
-
-    def test_staff_can_access_without_explicit_perms(
-        self, staff_client: Client
-    ) -> None:
-        """Staff user with no explicit permissions can still see everything."""
-        with patch("django_dagster.admin.client.get_jobs") as mock:
-            mock.return_value = []
-            resp = staff_client.get(reverse(JOB_URLS["changelist"]))
-            assert resp.status_code == 200
-
-    @patch("django_dagster.admin.client.get_job_default_run_config")
-    def test_staff_can_trigger_without_explicit_perms(
-        self, mock_cfg: MagicMock, staff_client: Client
-    ) -> None:
-        mock_cfg.return_value = {}
-        resp = staff_client.get(reverse(JOB_URLS["trigger"], args=["etl_job"]))
-        assert resp.status_code == 200
-
-    @patch("django_dagster.admin.client.cancel_run")
-    def test_staff_can_cancel_without_explicit_perms(
-        self, mock_cancel: MagicMock, staff_client: Client
-    ) -> None:
-        resp = staff_client.post(reverse(RUN_URLS["cancel"], args=["abc123"]))
-        assert resp.status_code == 302

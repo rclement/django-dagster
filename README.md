@@ -16,7 +16,7 @@ A Django plugin for interacting with a [Dagster](https://dagster.io/) server thr
 - Cancel running jobs
 - Re-execute failed/canceled jobs
 - View detailed run metadata (config, tags, event logs)
-- Optional granular permission system using Django's built-in permissions
+- Granular permission system using Django's built-in permissions
 
 ## Screenshots
 
@@ -62,17 +62,11 @@ Then run migrations to create the permission models:
 python manage.py migrate django_dagster
 ```
 
-No URL configuration is needed — the plugin registers itself with the Django admin automatically. Navigate to `/admin/` and look for the **Dagster** section.
+No URL configuration or manual admin registration is needed. Navigate to `/admin/` and look for the **Dagster** section.
 
 ## Permissions
 
-By default, all staff users (`is_staff=True`) have full access to all Dagster views and actions. To enable granular, Django-native permission control, add this to your settings:
-
-```python
-DAGSTER_PERMISSIONS_ENABLED = True
-```
-
-When enabled, access is governed by standard Django permissions that you can assign to users or groups via the Django admin:
+Access is governed by standard Django permissions that you can assign to users or groups via the Django admin. Superusers always have full access.
 
 | Permission | Codename | Grants access to |
 |---|---|---|
@@ -81,8 +75,52 @@ When enabled, access is governed by standard Django permissions that you can ass
 | Can trigger Dagster jobs | `trigger_dagsterjob` | Trigger/submit a new job run |
 | Can cancel Dagster runs | `cancel_dagsterrun` | Cancel a running job |
 | Can re-execute Dagster runs | `reexecute_dagsterrun` | Re-execute a completed/failed run |
+| Can access the Dagster UI | `access_dagster_ui` | Show direct links to the Dagster UI |
 
-Superusers always have all permissions regardless of this setting.
+To customise behaviour — for example, granting all staff users full access by default — unregister the defaults and register your own subclass in your project's `admin.py`:
+
+```python
+from django.contrib import admin
+from django_dagster.admin import DagsterJobAdmin, DagsterRunAdmin
+from django_dagster.models import DagsterJob, DagsterRun
+
+def _is_active_staff(request):
+    return request.user.is_active and request.user.is_staff
+
+class MyDagsterJobAdmin(DagsterJobAdmin):
+    def has_module_permission(self, request):
+        return _is_active_staff(request)
+
+    def has_view_permission(self, request, obj=None):
+        return _is_active_staff(request)
+
+    def has_trigger_dagsterjob_permission(self, request):
+        return _is_active_staff(request)
+
+    def has_access_dagster_ui_permission(self, request):
+        return _is_active_staff(request)
+
+class MyDagsterRunAdmin(DagsterRunAdmin):
+    def has_module_permission(self, request):
+        return _is_active_staff(request)
+
+    def has_view_permission(self, request, obj=None):
+        return _is_active_staff(request)
+
+    def has_cancel_dagsterrun_permission(self, request):
+        return _is_active_staff(request)
+
+    def has_reexecute_dagsterrun_permission(self, request):
+        return _is_active_staff(request)
+
+    def has_access_dagster_ui_permission(self, request):
+        return _is_active_staff(request)
+
+admin.site.unregister(DagsterJob)
+admin.site.unregister(DagsterRun)
+admin.site.register(DagsterJob, MyDagsterJobAdmin)
+admin.site.register(DagsterRun, MyDagsterRunAdmin)
+```
 
 ## Programmatic API
 

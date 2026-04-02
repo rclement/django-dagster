@@ -13,7 +13,6 @@ from django.template.response import TemplateResponse
 from django.urls import URLPattern, path, reverse
 
 from . import client
-from .models import DagsterJob, DagsterRun
 
 
 # ---------------------------------------------------------------------------
@@ -22,11 +21,10 @@ from .models import DagsterJob, DagsterRun
 
 
 class _DagsterAdminBase(admin.ModelAdmin):  # type: ignore[type-arg]
-    """Common permission logic for Dagster admin classes."""
+    """Common base for Dagster admin classes."""
 
-    @staticmethod
-    def _permissions_enabled() -> bool:
-        return getattr(settings, "DAGSTER_PERMISSIONS_ENABLED", False)
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
 
     def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
@@ -34,34 +32,21 @@ class _DagsterAdminBase(admin.ModelAdmin):  # type: ignore[type-arg]
     def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
 
-    def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
-        if self._permissions_enabled():
-            return super().has_view_permission(request, obj)
-        return bool(request.user.is_active and request.user.is_staff)
-
-    def has_module_permission(self, request: HttpRequest) -> bool:
-        if self._permissions_enabled():
-            return super().has_module_permission(request)
-        return bool(request.user.is_active and request.user.is_staff)
+    def has_access_dagster_ui_permission(self, request: HttpRequest) -> bool:
+        """Check whether the current user may see Dagster UI links."""
+        return bool(request.user.has_perm("django_dagster.access_dagster_ui"))
 
     def _check_view_perm(self, request: HttpRequest) -> HttpResponse | None:
-        """Return HttpResponseForbidden if permissions are enabled and the
-        user lacks view permission for this model, otherwise None."""
-        if self._permissions_enabled() and not self.has_view_permission(request):
+        """Return HttpResponseForbidden if the user lacks view permission."""
+        if not self.has_view_permission(request):
             return HttpResponseForbidden()
         return None
-
-    def _can_access_dagster_ui(self, request: HttpRequest) -> bool:
-        """Check whether the current user may see Dagster UI links."""
-        if not self._permissions_enabled():
-            return True
-        return bool(request.user.has_perm("django_dagster.access_dagster_ui"))
 
     def _build_context(
         self, request: HttpRequest, extra: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         dagster_url: str | None = getattr(settings, "DAGSTER_URL", None)
-        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+        show_dagster_ui = bool(dagster_url) and self.has_access_dagster_ui_permission(
             request,
         )
         context: dict[str, Any] = {
@@ -103,11 +88,9 @@ class _DagsterAdminBase(admin.ModelAdmin):  # type: ignore[type-arg]
 # ---------------------------------------------------------------------------
 
 
-@admin.register(DagsterJob)
 class DagsterJobAdmin(_DagsterAdminBase):
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        # No generic "Add" link on the admin index; trigger is per-job.
-        return False
+    def has_trigger_dagsterjob_permission(self, request: HttpRequest) -> bool:
+        return bool(request.user.has_perm("django_dagster.trigger_dagsterjob"))
 
     def get_urls(self) -> list[URLPattern]:
         info = (self.model._meta.app_label, self.model._meta.model_name)
@@ -154,7 +137,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
             )
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
-        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+        show_dagster_ui = bool(dagster_url) and self.has_access_dagster_ui_permission(
             request,
         )
         if jobs is not None and show_dagster_ui:
@@ -207,7 +190,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
             pass
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
-        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+        show_dagster_ui = bool(dagster_url) and self.has_access_dagster_ui_permission(
             request,
         )
 
@@ -225,9 +208,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
                     run["runId"],
                 )
 
-        can_trigger = not self._permissions_enabled() or request.user.has_perm(
-            "django_dagster.trigger_dagsterjob"
-        )
+        can_trigger = self.has_trigger_dagsterjob_permission(request)
 
         context = self._build_context(
             request,
@@ -245,9 +226,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
     # -- add (trigger) -------------------------------------------------------
 
     def trigger_view(self, request: HttpRequest, job_name: str) -> HttpResponse:
-        if self._permissions_enabled() and not request.user.has_perm(
-            "django_dagster.trigger_dagsterjob"
-        ):
+        if not self.has_trigger_dagsterjob_permission(request):
             return HttpResponseForbidden()
 
         if request.method == "POST":
@@ -324,10 +303,12 @@ class DagsterJobAdmin(_DagsterAdminBase):
 # ---------------------------------------------------------------------------
 
 
-@admin.register(DagsterRun)
 class DagsterRunAdmin(_DagsterAdminBase):
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        return False
+    def has_cancel_dagsterrun_permission(self, request: HttpRequest) -> bool:
+        return bool(request.user.has_perm("django_dagster.cancel_dagsterrun"))
+
+    def has_reexecute_dagsterrun_permission(self, request: HttpRequest) -> bool:
+        return bool(request.user.has_perm("django_dagster.reexecute_dagsterrun"))
 
     def get_urls(self) -> list[URLPattern]:
         info = (self.model._meta.app_label, self.model._meta.model_name)
@@ -394,7 +375,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
                 )
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
-        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+        show_dagster_ui = bool(dagster_url) and self.has_access_dagster_ui_permission(
             request,
         )
         if runs is not None and show_dagster_ui:
@@ -465,16 +446,12 @@ class DagsterRunAdmin(_DagsterAdminBase):
             "CANCELED",
         )
 
-        if self._permissions_enabled():
-            can_cancel = status_can_cancel and request.user.has_perm(
-                "django_dagster.cancel_dagsterrun"
-            )
-            can_reexecute = status_can_reexecute and request.user.has_perm(
-                "django_dagster.reexecute_dagsterrun"
-            )
-        else:
-            can_cancel = status_can_cancel
-            can_reexecute = status_can_reexecute
+        can_cancel = status_can_cancel and self.has_cancel_dagsterrun_permission(
+            request
+        )
+        can_reexecute = (
+            status_can_reexecute and self.has_reexecute_dagsterrun_permission(request)
+        )
 
         # Fetch recent runs for the same job
         related_runs = None
@@ -496,7 +473,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
             pass
 
         dagster_url = getattr(settings, "DAGSTER_URL", None)
-        show_dagster_ui = bool(dagster_url) and self._can_access_dagster_ui(
+        show_dagster_ui = bool(dagster_url) and self.has_access_dagster_ui_permission(
             request,
         )
 
@@ -547,9 +524,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
     # -- cancel --------------------------------------------------------------
 
     def cancel_run_view(self, request: HttpRequest, run_id: str) -> HttpResponse:
-        if self._permissions_enabled() and not request.user.has_perm(
-            "django_dagster.cancel_dagsterrun"
-        ):
+        if not self.has_cancel_dagsterrun_permission(request):
             return HttpResponseForbidden()
 
         if request.method == "POST":
@@ -569,9 +544,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
     # -- re-execute ----------------------------------------------------------
 
     def reexecute_run_view(self, request: HttpRequest, run_id: str) -> HttpResponse:
-        if self._permissions_enabled() and not request.user.has_perm(
-            "django_dagster.reexecute_dagsterrun"
-        ):
+        if not self.has_reexecute_dagsterrun_permission(request):
             return HttpResponseForbidden()
 
         if request.method == "POST":

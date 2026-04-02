@@ -1,6 +1,6 @@
 # django-dagster demo
 
-A ready-to-run demo showcasing the django-dagster plugin with permissions enabled.
+A ready-to-run demo showcasing the django-dagster plugin.
 
 ## Quick start
 
@@ -28,20 +28,23 @@ Then open http://localhost:8000/admin/.
 
 ## Pre-created users
 
-The `setup_demo` command creates the database and two users:
+The `setup_demo` command creates the database and three users:
 
 | Username | Password | Role | Access |
 |----------|----------|------|--------|
 | `admin` | `admin` | Superuser | Full access — can view, trigger, cancel, and re-execute |
+| `operator` | `operator` | Staff (full Dagster access) | Can view, trigger, cancel, re-execute, and see Dagster UI links |
 | `viewer` | `viewer` | Staff (view-only) | Can browse jobs and runs, but **cannot** trigger, cancel, or re-execute |
-
-Log in as `admin` to see all action buttons (Trigger, Cancel, Re-execute). Then log in as `viewer` to see the same pages without those buttons.
 
 ## Permissions
 
-This demo has `DAGSTER_PERMISSIONS_ENABLED = True` in settings. The `viewer` user is assigned only the `view_dagsterjob` and `view_dagsterrun` permissions.
+The plugin uses Django's standard permission system. Each user has explicit permissions assigned:
 
-To grant the viewer additional permissions, log in as `admin`, go to the Users section, edit the `viewer` user, and add permissions like `trigger_dagsterjob`, `cancel_dagsterrun`, or `reexecute_dagsterrun`.
+- `admin` is a superuser — Django grants all permissions implicitly
+- `operator` has all Dagster permissions: `view_dagsterjob`, `trigger_dagsterjob`, `access_dagster_ui`, `view_dagsterrun`, `cancel_dagsterrun`, `reexecute_dagsterrun`
+- `viewer` has only `view_dagsterjob` and `view_dagsterrun`
+
+To modify permissions, log in as `admin`, go to **Authentication > Users**, edit a user, and adjust their permissions.
 
 ## Sample Dagster jobs
 
@@ -53,6 +56,6 @@ The demo includes three Dagster jobs defined in `dagster_jobs/sample.py`:
 
 ## Things to try
 
-1. **As admin**: trigger `etl_pipeline`, view run detail, cancel `slow_job`, re-execute a failed run
-2. **As viewer**: browse the same pages — notice the action buttons are hidden
-3. **Grant permissions**: as admin, edit the `viewer` user and add `trigger_dagsterjob` — the viewer will now see the Trigger button
+1. **As operator**: trigger `etl_pipeline`, view run detail, cancel `slow_job`, re-execute a failed run, follow Dagster UI links
+2. **As viewer**: browse the same pages — notice the action buttons and Dagster UI links are hidden
+3. **As admin**: edit the `viewer` user and add `trigger_dagsterjob` — the viewer will now see the Trigger button
