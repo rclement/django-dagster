@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-04-02
+
+### Fixed
+
+- Support path prefix in `DAGSTER_URL` setting
+
 ## [0.1.0] - 2026-02-17
 
 Initial release of Django Dagster, a Django plugin for interacting with a Dagster server through the Django admin interface.
@@ -24,5 +30,6 @@ Initial release of Django Dagster, a Django plugin for interacting with a Dagste
 - Programmatic Python API: `get_jobs`, `get_runs`, `get_run`, `submit_job`, `cancel_run`, `reexecute_run`, `get_run_events`, `get_job_default_run_config`
 - Support for Python 3.10–3.14 and Django 4.2, 5.2, 6.0
 
-[Unreleased]: https://github.com/rclement/django-dagster/compare/0.1.0...HEAD
+[Unreleased]: https://github.com/rclement/django-dagster/compare/0.1.1...HEAD
+[0.1.1]: https://github.com/rclement/django-dagster/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/rclement/django-dagster/releases/tag/0.1.0
