@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-04-02
+
+### Fixed
+
+- Support path prefix in `DAGSTER_URL` setting
+
 ## [0.1.0] - 2026-02-17
 
 Initial release of Django Dagster, a Django plugin for interacting with a Dagster server through the Django admin interface.
