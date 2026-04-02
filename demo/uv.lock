@@ -261,7 +261,7 @@ wheels = [
 
 [[package]]
 name = "django-dagster"
-version = "0.0.0"
+version = "0.1.1"
 source = { editable = "../" }
 dependencies = [
     { name = "dagster-graphql" },
@@ -276,16 +276,16 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "bandit", specifier = "==1.9.3" },
-    { name = "django-stubs", specifier = "==5.2.9" },
+    { name = "bandit", specifier = "==1.9.4" },
+    { name = "django-stubs", specifier = "==6.0.2" },
     { name = "invoke", specifier = "==2.2.1" },
-    { name = "mypy", specifier = "==1.19.1" },
+    { name = "mypy", specifier = "==1.20.0" },
     { name = "pip-audit", specifier = "==2.10.0" },
     { name = "pytest", specifier = "==9.0.2" },
-    { name = "pytest-cov", specifier = "==7.0.0" },
+    { name = "pytest-cov", specifier = "==7.1.0" },
     { name = "pytest-django", specifier = "==4.12.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "ruff", specifier = "==0.15.1" },
+    { name = "pyyaml", specifier = "==6.0.3" },
+    { name = "ruff", specifier = "==0.15.8" },
 ]
 
 [[package]]
