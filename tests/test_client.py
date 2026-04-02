@@ -15,9 +15,7 @@ def test_get_client_parses_url(mock_cls: MagicMock, settings: Any) -> None:
 
     get_client()
     mock_cls.assert_called_once_with(
-        hostname="dagster.example.com",
-        port_number=8080,
-        use_https=True,
+        hostname="dagster.example.com:8080", use_https=True
     )
 
 
@@ -28,11 +26,17 @@ def test_get_client_http_defaults(mock_cls: MagicMock, settings: Any) -> None:
     from django_dagster.client import get_client
 
     get_client()
-    mock_cls.assert_called_once_with(
-        hostname="localhost",
-        port_number=3000,
-        use_https=False,
-    )
+    mock_cls.assert_called_once_with(hostname="localhost:3000", use_https=False)
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_client_with_path_prefix(mock_cls: MagicMock, settings: Any) -> None:
+    settings.DAGSTER_URL = "https://hostname:443/dagit/"
+
+    from django_dagster.client import get_client
+
+    get_client()
+    mock_cls.assert_called_once_with(hostname="hostname:443/dagit", use_https=True)
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")

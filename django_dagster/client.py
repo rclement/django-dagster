@@ -10,9 +10,13 @@ from django.conf import settings
 def get_client() -> DagsterGraphQLClient:
     """Create a DagsterGraphQLClient from Django settings."""
     parsed = urlparse(settings.DAGSTER_URL)
+    # Workaround for https://github.com/dagster-io/dagster/issues/5678
+    # passing hostname as <host>:<port>/<prefix> makes the underlying
+    # implementation produce the correct URL <scheme>://<host>:<port>/<prefix>/graphql
+    # when a path prefix is present.
+    hostname = parsed.netloc + parsed.path.rstrip("/")
     return DagsterGraphQLClient(
-        hostname=parsed.hostname or "localhost",
-        port_number=parsed.port,
+        hostname=hostname or "localhost",
         use_https=parsed.scheme == "https",
     )
 
