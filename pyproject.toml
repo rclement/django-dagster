@@ -41,7 +41,7 @@ Issues = "https://github.com/rclement/django-dagster/issues"
 [dependency-groups]
 dev = [
     "pytest==9.0.2",
-    "pytest-cov==7.0.0",
+    "pytest-cov==7.1.0",
     "pytest-django==4.12.0",
     "ruff==0.15.1",
     "mypy==1.20.0",
