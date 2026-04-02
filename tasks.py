@@ -34,7 +34,7 @@ def lint(ctx: Context) -> None:
 
 @task
 def typing(ctx: Context) -> None:
-    ctx.run(f"mypy {app_path} {tests_path}", echo=True, pty=True)
+    ctx.run(f"mypy --strict {app_path} {tests_path}", echo=True, pty=True)
 
 
 @task
