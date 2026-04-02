@@ -10,11 +10,22 @@ from django_dagster.models import DagsterJob, DagsterRun
 
 @pytest.fixture
 def staff_user(db: Any) -> User:
-    return User.objects.create_user(
+    user = User.objects.create_user(
         username="staff",
         password="password",
         is_staff=True,
     )
+    _add_perms(
+        user,
+        DagsterJob,
+        ["view_dagsterjob", "trigger_dagsterjob", "access_dagster_ui"],
+    )
+    _add_perms(
+        user,
+        DagsterRun,
+        ["view_dagsterrun", "cancel_dagsterrun", "reexecute_dagsterrun"],
+    )
+    return user
 
 
 @pytest.fixture

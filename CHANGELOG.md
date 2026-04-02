@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Permissions are now always enforced using Django's standard permission system.
+The `DAGSTER_PERMISSIONS_ENABLED` setting is no longer needed and can be removed.
+Staff users must be explicitly granted permissions, or the admin classes can be
+subclassed to restore custom behaviour (see README for an example).
+
+### Changed
+
+- **BREAKING**: remove custom permission system
+
 ## [0.1.1] - 2026-04-02
 
 ### Fixed

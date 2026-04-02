@@ -68,4 +68,3 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Dagster configuration
 # ---------------------------------------------------------------------------
 DAGSTER_URL = "http://localhost:3000"
-DAGSTER_PERMISSIONS_ENABLED = True
