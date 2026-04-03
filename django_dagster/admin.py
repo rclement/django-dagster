@@ -12,7 +12,7 @@ from django.http import (
 from django.template.response import TemplateResponse
 from django.urls import URLPattern, path, reverse
 
-from . import client
+from .models import DagsterJob, DagsterRun
 
 
 # ---------------------------------------------------------------------------
@@ -64,15 +64,12 @@ class _DagsterAdminBase(admin.ModelAdmin):  # type: ignore[type-arg]
         return context
 
     @staticmethod
-    def _dagster_job_ui_url(dagster_url: str | None, job: dict[str, Any]) -> str | None:
+    def _dagster_job_ui_url(dagster_url: str | None, job: DagsterJob) -> str | None:
         """Build the Dagster UI URL for a specific job."""
         if not dagster_url:
             return None
         base = dagster_url.rstrip("/")
-        repo = job.get("repository", "")
-        location = job.get("location", "")
-        name = job.get("name", "")
-        return f"{base}/locations/{repo}@{location}/jobs/{name}"
+        return f"{base}/locations/{job.repository}@{job.location}/jobs/{job.name}"
 
     @staticmethod
     def _dagster_run_ui_url(dagster_url: str | None, run_id: str) -> str | None:
@@ -101,12 +98,12 @@ class DagsterJobAdmin(_DagsterAdminBase):
                 name="%s_%s_changelist" % info,
             ),
             path(
-                "<str:job_name>/trigger/",
+                "<str:location>/<str:repository>/<str:job_name>/trigger/",
                 self.admin_site.admin_view(self.trigger_view),
                 name="%s_%s_trigger" % info,
             ),
             path(
-                "<str:job_name>/change/",
+                "<str:location>/<str:repository>/<str:job_name>/change/",
                 self.admin_site.admin_view(self.job_detail_view),
                 name="%s_%s_change" % info,
             ),
@@ -119,9 +116,9 @@ class DagsterJobAdmin(_DagsterAdminBase):
         if denied:
             return denied
 
-        jobs = None
+        jobs: list[DagsterJob] | None = None
         try:
-            jobs = client.get_jobs()
+            jobs = DagsterJob.objects.all()
         except Exception as e:
             self.message_user(
                 request, f"Failed to connect to Dagster: {e}", messages.ERROR
@@ -132,7 +129,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
         if jobs is not None and sort in ("name", "-name"):
             jobs = sorted(
                 jobs,
-                key=lambda j: j["name"],
+                key=lambda j: j.name,
                 reverse=sort.startswith("-"),
             )
 
@@ -142,10 +139,7 @@ class DagsterJobAdmin(_DagsterAdminBase):
         )
         if jobs is not None and show_dagster_ui:
             for job in jobs:
-                job["dagster_ui_url"] = self._dagster_job_ui_url(
-                    dagster_url,
-                    job,
-                )
+                job.dagster_ui_url = self._dagster_job_ui_url(dagster_url, job)  # type: ignore[attr-defined]
 
         context = self._build_context(
             request,
@@ -159,18 +153,20 @@ class DagsterJobAdmin(_DagsterAdminBase):
 
     # -- change (detail) -----------------------------------------------------
 
-    def job_detail_view(self, request: HttpRequest, job_name: str) -> HttpResponse:
+    def job_detail_view(
+        self, request: HttpRequest, location: str, repository: str, job_name: str
+    ) -> HttpResponse:
         denied = self._check_view_perm(request)
         if denied:
             return denied
 
-        job = None
+        job: DagsterJob | None = None
         try:
-            jobs = client.get_jobs()
-            for j in jobs:
-                if j["name"] == job_name:
-                    job = j
-                    break
+            job = DagsterJob.objects.get(
+                name=job_name, repository=repository, location=location
+            )
+        except DagsterJob.DoesNotExist:
+            pass
         except Exception as e:
             self.message_user(
                 request, f"Failed to connect to Dagster: {e}", messages.ERROR
@@ -183,9 +179,9 @@ class DagsterJobAdmin(_DagsterAdminBase):
             )
 
         # Fetch recent runs for this job
-        recent_runs = None
+        recent_runs: list[DagsterRun] | None = None
         try:
-            recent_runs = client.get_runs(job_name=job_name, limit=10)
+            recent_runs = DagsterRun.objects.filter(job_name=job_name, limit=10)
         except Exception:  # nosec B110
             pass
 
@@ -199,13 +195,13 @@ class DagsterJobAdmin(_DagsterAdminBase):
         if show_dagster_ui and dagster_url:
             dagster_job_ui_url = self._dagster_job_ui_url(dagster_url, job)
             base = dagster_url.rstrip("/")
-            dagster_location_ui_url = f"{base}/locations/{job['location']}"
+            dagster_location_ui_url = f"{base}/locations/{job.location}"
 
         if recent_runs is not None and show_dagster_ui:
             for run in recent_runs:
-                run["dagster_ui_url"] = self._dagster_run_ui_url(
+                run.dagster_ui_url = self._dagster_run_ui_url(  # type: ignore[attr-defined]
                     dagster_url,
-                    run["runId"],
+                    run.run_id,
                 )
 
         can_trigger = self.has_trigger_dagsterjob_permission(request)
@@ -225,7 +221,9 @@ class DagsterJobAdmin(_DagsterAdminBase):
 
     # -- add (trigger) -------------------------------------------------------
 
-    def trigger_view(self, request: HttpRequest, job_name: str) -> HttpResponse:
+    def trigger_view(
+        self, request: HttpRequest, location: str, repository: str, job_name: str
+    ) -> HttpResponse:
         if not self.has_trigger_dagsterjob_permission(request):
             return HttpResponseForbidden()
 
@@ -242,12 +240,17 @@ class DagsterJobAdmin(_DagsterAdminBase):
                     )
                     return self._render_trigger_form(
                         request,
+                        location=location,
+                        repository=repository,
                         job_name=job_name,
                         run_config=config_json,
                     )
 
             try:
-                run_id = client.submit_job(job_name, run_config=run_config)
+                job = DagsterJob.objects.get(
+                    name=job_name, repository=repository, location=location
+                )
+                run_id = job.submit(run_config=run_config)
                 self.message_user(
                     request,
                     f"Job '{job_name}' triggered. Run ID: {run_id}",
@@ -265,6 +268,8 @@ class DagsterJobAdmin(_DagsterAdminBase):
                 )
                 return self._render_trigger_form(
                     request,
+                    location=location,
+                    repository=repository,
                     job_name=job_name,
                     run_config=config_json,
                 )
@@ -272,7 +277,10 @@ class DagsterJobAdmin(_DagsterAdminBase):
         # GET: fetch default run config
         default_config = "{}"
         try:
-            config = client.get_job_default_run_config(job_name)
+            job = DagsterJob.objects.get(
+                name=job_name, repository=repository, location=location
+            )
+            config = job.get_default_run_config()
             if config:
                 default_config = json.dumps(config, indent=2)
         except Exception:  # nosec B110
@@ -280,18 +288,27 @@ class DagsterJobAdmin(_DagsterAdminBase):
 
         return self._render_trigger_form(
             request,
+            location=location,
+            repository=repository,
             job_name=job_name,
             run_config=default_config,
         )
 
     def _render_trigger_form(
-        self, request: HttpRequest, job_name: str, run_config: str = ""
+        self,
+        request: HttpRequest,
+        location: str,
+        repository: str,
+        job_name: str,
+        run_config: str = "",
     ) -> TemplateResponse:
         context = self._build_context(
             request,
             {
                 "title": "Trigger Dagster Job Run",
                 "job_name": job_name,
+                "location": location,
+                "repository": repository,
                 "run_config": run_config,
             },
         )
@@ -338,11 +355,11 @@ class DagsterRunAdmin(_DagsterAdminBase):
     # -- changelist ----------------------------------------------------------
 
     SORT_KEYS: dict[str, str] = {
-        "run_id": "runId",
-        "job": "jobName",
+        "run_id": "run_id",
+        "job": "job_name",
         "status": "status",
-        "started": "startTime",
-        "ended": "endTime",
+        "started": "start_time",
+        "ended": "end_time",
     }
 
     def run_list_view(self, request: HttpRequest) -> HttpResponse:
@@ -354,9 +371,9 @@ class DagsterRunAdmin(_DagsterAdminBase):
         status = request.GET.get("status")
         statuses = [status] if status else None
 
-        runs = None
+        runs: list[DagsterRun] | None = None
         try:
-            runs = client.get_runs(job_name=job_name, statuses=statuses)
+            runs = DagsterRun.objects.filter(job_name=job_name, statuses=statuses)
         except Exception as e:
             self.message_user(
                 request, f"Failed to connect to Dagster: {e}", messages.ERROR
@@ -370,7 +387,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
             if key:
                 runs = sorted(
                     runs,
-                    key=lambda r: r.get(key) or "",
+                    key=lambda r: getattr(r, key) or "",
                     reverse=sort.startswith("-"),
                 )
 
@@ -380,15 +397,15 @@ class DagsterRunAdmin(_DagsterAdminBase):
         )
         if runs is not None and show_dagster_ui:
             for run in runs:
-                run["dagster_ui_url"] = self._dagster_run_ui_url(
+                run.dagster_ui_url = self._dagster_run_ui_url(  # type: ignore[attr-defined]
                     dagster_url,
-                    run["runId"],
+                    run.run_id,
                 )
 
         # Fetch job list for the filter sidebar
-        jobs = None
+        jobs: list[DagsterJob] | None = None
         try:
-            jobs = client.get_jobs()
+            jobs = DagsterJob.objects.all()
         except Exception:  # nosec B110
             pass
 
@@ -422,9 +439,11 @@ class DagsterRunAdmin(_DagsterAdminBase):
         if denied:
             return denied
 
-        run = None
+        run: DagsterRun | None = None
         try:
-            run = client.get_run(object_id)
+            run = DagsterRun.objects.get(run_id=object_id)
+        except DagsterRun.DoesNotExist:
+            pass
         except Exception as e:
             self.message_user(request, f"Failed to fetch run: {e}", messages.ERROR)
 
@@ -434,13 +453,13 @@ class DagsterRunAdmin(_DagsterAdminBase):
                 reverse("admin:django_dagster_dagsterrun_changelist")
             )
 
-        status_can_cancel = run["status"] in (
+        status_can_cancel = run.status in (
             "QUEUED",
             "NOT_STARTED",
             "STARTING",
             "STARTED",
         )
-        status_can_reexecute = run["status"] in (
+        status_can_reexecute = run.status in (
             "SUCCESS",
             "FAILURE",
             "CANCELED",
@@ -454,10 +473,10 @@ class DagsterRunAdmin(_DagsterAdminBase):
         )
 
         # Fetch recent runs for the same job
-        related_runs = None
+        related_runs: list[DagsterRun] | None = None
         try:
-            related_runs = client.get_runs(
-                job_name=run["jobName"],
+            related_runs = DagsterRun.objects.filter(
+                job_name=run.job_name,
                 limit=10,
             )
         except Exception:  # nosec B110
@@ -466,7 +485,7 @@ class DagsterRunAdmin(_DagsterAdminBase):
         # Fetch event logs for this run
         events = None
         try:
-            events_data = client.get_run_events(object_id)
+            events_data = run.get_events()
             if events_data:
                 events = events_data["events"]
         except Exception:  # nosec B110
@@ -479,31 +498,17 @@ class DagsterRunAdmin(_DagsterAdminBase):
 
         dagster_run_ui_url = None
         dagster_job_ui_url = None
-        if show_dagster_ui:
-            dagster_run_ui_url = self._dagster_run_ui_url(
-                dagster_url,
-                object_id,
-            )
-            # Look up the job to build its Dagster UI URL
-            try:
-                jobs = client.get_jobs()
-                job = next(
-                    (j for j in jobs if j["name"] == run["jobName"]),
-                    None,
-                )
-                if job:
-                    dagster_job_ui_url = self._dagster_job_ui_url(
-                        dagster_url,
-                        job,
-                    )
-            except Exception:  # nosec B110
-                pass
+        if show_dagster_ui and dagster_url:
+            dagster_run_ui_url = self._dagster_run_ui_url(dagster_url, object_id)
+            if run.repository and run.location:
+                base = dagster_url.rstrip("/")
+                dagster_job_ui_url = f"{base}/locations/{run.repository}@{run.location}/jobs/{run.job_name}"
 
         if related_runs is not None and show_dagster_ui:
             for r in related_runs:
-                r["dagster_ui_url"] = self._dagster_run_ui_url(
+                r.dagster_ui_url = self._dagster_run_ui_url(  # type: ignore[attr-defined]
                     dagster_url,
-                    r["runId"],
+                    r.run_id,
                 )
 
         context = self._build_context(
@@ -529,7 +534,8 @@ class DagsterRunAdmin(_DagsterAdminBase):
 
         if request.method == "POST":
             try:
-                client.cancel_run(run_id)
+                run = DagsterRun.objects.get(run_id=run_id)
+                run.cancel()
                 self.message_user(
                     request,
                     f"Run {run_id} cancellation requested",
@@ -549,7 +555,8 @@ class DagsterRunAdmin(_DagsterAdminBase):
 
         if request.method == "POST":
             try:
-                new_run_id = client.reexecute_run(run_id)
+                run = DagsterRun.objects.get(run_id=run_id)
+                new_run_id = run.reexecute()
                 self.message_user(
                     request,
                     f"Run re-executed. New run ID: {new_run_id}",

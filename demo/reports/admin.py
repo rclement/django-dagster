@@ -4,7 +4,7 @@ from django.contrib import admin, messages
 from django.urls import reverse
 from django.utils.html import format_html
 
-from django_dagster import get_run, submit_job
+from django_dagster import DagsterJob, DagsterRun
 
 from .models import ReportRequest
 
@@ -104,7 +104,12 @@ class ReportRequestAdmin(admin.ModelAdmin):
                 }
             }
             try:
-                run_id = submit_job("generate_report_job", run_config=run_config)
+                job = DagsterJob.objects.get(
+                    name="generate_report_job",
+                    repository="__repository__",
+                    location="sample_dagster_jobs",
+                )
+                run_id = job.submit(run_config=run_config)
                 obj.dagster_run_id = run_id
                 obj.status = "QUEUED"
                 messages.success(request, f"Dagster job triggered — run ID: {run_id}")
@@ -118,10 +123,13 @@ class ReportRequestAdmin(admin.ModelAdmin):
         try:
             obj = self.get_object(request, object_id)
             if obj and obj.dagster_run_id:
-                run = get_run(obj.dagster_run_id)
-                if run and run["status"] != obj.status:
-                    obj.status = run["status"]
-                    obj.save(update_fields=["status", "updated_at"])
+                try:
+                    run = DagsterRun.objects.get(run_id=obj.dagster_run_id)
+                    if run.status != obj.status:
+                        obj.status = run.status
+                        obj.save(update_fields=["status", "updated_at"])
+                except DagsterRun.DoesNotExist:
+                    pass
         except Exception:
             logger.exception("Failed to refresh Dagster run status")
         return super().change_view(request, object_id, form_url, extra_context)
