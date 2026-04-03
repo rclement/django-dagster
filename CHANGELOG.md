@@ -12,6 +12,10 @@ The `DAGSTER_PERMISSIONS_ENABLED` setting is no longer needed and can be removed
 Staff users must be explicitly granted permissions, or the admin classes can be
 subclassed to restore custom behaviour (see README for an example).
 
+### Added
+
+- Programmatic API through Django models
+
 ### Changed
 
 - **BREAKING**: remove custom permission system

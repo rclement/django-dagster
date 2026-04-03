@@ -11,7 +11,7 @@
 {% block dagster_content %}
 <div class="submit-row">
     {% if can_trigger %}
-    <form method="get" action="{% url 'admin:django_dagster_dagsterjob_trigger' job.name %}" style="display:inline;">
+    <form method="get" action="{% url 'admin:django_dagster_dagsterjob_trigger' job.location job.repository job.name %}" style="display:inline;">
         <input type="submit" value="{% trans 'Trigger New Run' %}">
     </form>
     {% endif %}
@@ -73,10 +73,10 @@
         <tbody>
             {% for run in recent_runs %}
             <tr>
-                <td><a href="{% url 'admin:django_dagster_dagsterrun_change' run.runId %}">{{ run.runId }}</a></td>
+                <td><a href="{% url 'admin:django_dagster_dagsterrun_change' run.run_id %}">{{ run.run_id }}</a></td>
                 <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
-                <td>{{ run.startTime|default:"—" }}</td>
-                <td>{{ run.endTime|default:"—" }}</td>
+                <td>{{ run.start_time|default:"—" }}</td>
+                <td>{{ run.end_time|default:"—" }}</td>
                 {% if dagster_url %}
                 <td>{% if run.dagster_ui_url %}<a href="{{ run.dagster_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}">&#x2197;</a>{% endif %}</td>
                 {% endif %}

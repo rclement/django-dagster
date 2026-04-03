@@ -124,10 +124,40 @@ admin.site.register(DagsterRun, MyDagsterRunAdmin)
 
 ## Programmatic API
 
-The package also exposes a Python API for use outside the admin:
+The package exposes Django model-like objects for use outside the admin:
 
 ```python
-from django_dagster import get_jobs, get_runs, get_run, submit_job, cancel_run, reexecute_run
+from django_dagster import DagsterJob, DagsterRun
+
+# List all jobs
+jobs = DagsterJob.objects.all()
+
+# Get a specific job (requires the repository and location names)
+job = DagsterJob.objects.get(
+    name="etl_pipeline",
+    repository="__repository__",
+    location="my_location",
+)
+
+# Trigger a job
+run_id = job.submit(run_config={"ops": {"my_op": {"config": {"x": 1}}}})
+
+# Get default run config
+config = job.get_default_run_config()
+
+# List runs (with optional filtering)
+runs = DagsterRun.objects.all()
+runs = DagsterRun.objects.filter(job_name="etl_pipeline", statuses=["SUCCESS"])
+
+# Get a specific run
+run = DagsterRun.objects.get(run_id="abc123")
+
+# Cancel / re-execute a run
+run.cancel()
+new_run_id = run.reexecute()
+
+# Get event logs
+events = run.get_events()
 ```
 
 ## Demo

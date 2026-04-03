@@ -5,7 +5,7 @@
 
 {% block dagster_breadcrumbs %}
 &rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_changelist' %}">{% trans 'Jobs' %}</a>
-&rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_change' job_name %}">{{ job_name }}</a>
+&rsaquo; <a href="{% url 'admin:django_dagster_dagsterjob_change' location repository job_name %}">{{ job_name }}</a>
 &rsaquo; {% trans 'Trigger' %}
 {% endblock %}
 

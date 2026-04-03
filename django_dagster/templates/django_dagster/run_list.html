@@ -178,12 +178,12 @@
             {% for run in runs %}
             <tr>
                 <th scope="row">
-                    <a href="{% url 'admin:django_dagster_dagsterrun_change' run.runId %}">{{ run.runId }}</a>
+                    <a href="{% url 'admin:django_dagster_dagsterrun_change' run.run_id %}">{{ run.run_id }}</a>
                 </th>
-                <td>{{ run.jobName }}</td>
+                <td>{{ run.job_name }}</td>
                 <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
-                <td>{{ run.startTime|default:"—" }}</td>
-                <td>{{ run.endTime|default:"—" }}</td>
+                <td>{{ run.start_time|default:"—" }}</td>
+                <td>{{ run.end_time|default:"—" }}</td>
                 {% if dagster_url %}
                 <td>{% if run.dagster_ui_url %}<a href="{{ run.dagster_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}">&#x2197;</a>{% endif %}</td>
                 {% endif %}

@@ -142,6 +142,31 @@ def graphql_repositories_response() -> dict[str, Any]:
 
 
 @pytest.fixture
+def graphql_pipeline_response() -> dict[str, Any]:
+    return {
+        "pipelineOrError": {
+            "__typename": "Pipeline",
+            "name": "etl_job",
+            "description": "Daily ETL pipeline",
+            "repository": {
+                "name": "my_repo",
+                "location": {"name": "my_location"},
+            },
+        },
+    }
+
+
+@pytest.fixture
+def graphql_pipeline_not_found_response() -> dict[str, Any]:
+    return {
+        "pipelineOrError": {
+            "__typename": "PipelineNotFoundError",
+            "message": "Could not find Pipeline my_location.my_repo.etl_job",
+        },
+    }
+
+
+@pytest.fixture
 def graphql_runs_response() -> dict[str, Any]:
     return {
         "runsOrError": {
@@ -153,6 +178,10 @@ def graphql_runs_response() -> dict[str, Any]:
                     "startTime": 1700000000.0,
                     "endTime": 1700003600.0,
                     "tags": [{"key": "env", "value": "prod"}],
+                    "repositoryOrigin": {
+                        "repositoryName": "my_repo",
+                        "repositoryLocationName": "my_location",
+                    },
                 },
                 {
                     "runId": "fff99999-0000-1111-2222-333344445555",
@@ -161,6 +190,10 @@ def graphql_runs_response() -> dict[str, Any]:
                     "startTime": 1700010000.0,
                     "endTime": 1700011000.0,
                     "tags": [],
+                    "repositoryOrigin": {
+                        "repositoryName": "my_repo",
+                        "repositoryLocationName": "my_location",
+                    },
                 },
             ],
         },
@@ -184,6 +217,10 @@ def make_run_detail_response(
                 {"key": "env", "value": "prod"},
                 {"key": "dagster/step_selection", "value": "all"},
             ],
+            "repositoryOrigin": {
+                "repositoryName": "my_repo",
+                "repositoryLocationName": "my_location",
+            },
             "stats": {
                 "stepsSucceeded": 3,
                 "stepsFailed": 0,

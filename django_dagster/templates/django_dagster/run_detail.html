@@ -5,19 +5,19 @@
 
 {% block dagster_breadcrumbs %}
 &rsaquo; <a href="{% url 'admin:django_dagster_dagsterrun_changelist' %}">{% trans 'Runs' %}</a>
-&rsaquo; {{ run.runId }}
+&rsaquo; {{ run.run_id }}
 {% endblock %}
 
 {% block dagster_content %}
 <div class="submit-row">
     {% if can_cancel %}
-    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_cancel' run.runId %}" style="display:inline;">
+    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_cancel' run.run_id %}" style="display:inline;">
         {% csrf_token %}
         <input type="submit" value="{% trans 'Cancel Run' %}" onclick="return confirm('{% trans 'Cancel this run?' %}')">
     </form>
     {% endif %}
     {% if can_reexecute %}
-    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_reexecute' run.runId %}" style="display:inline;">
+    <form method="post" action="{% url 'admin:django_dagster_dagsterrun_reexecute' run.run_id %}" style="display:inline;">
         {% csrf_token %}
         <input type="submit" value="{% trans 'Re-execute' %}">
     </form>
@@ -37,13 +37,13 @@
     <div class="form-row">
         <div>
             <label>{% trans 'Run ID:' %}</label>
-            <div class="readonly"><code>{{ run.runId }}</code>{% if dagster_run_ui_url %} <a href="{{ dagster_run_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}" style="opacity:.5;text-decoration:none;font-size:11px;">&#x2197;</a>{% endif %}</div>
+            <div class="readonly"><code>{{ run.run_id }}</code>{% if dagster_run_ui_url %} <a href="{{ dagster_run_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}" style="opacity:.5;text-decoration:none;font-size:11px;">&#x2197;</a>{% endif %}</div>
         </div>
     </div>
     <div class="form-row">
         <div>
             <label>{% trans 'Job:' %}</label>
-            <div class="readonly">{{ run.jobName }}{% if dagster_job_ui_url %} <a href="{{ dagster_job_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View job in Dagster UI' %}" style="opacity:.5;text-decoration:none;font-size:11px;">&#x2197;</a>{% endif %}</div>
+            <div class="readonly">{{ run.job_name }}{% if dagster_job_ui_url %} <a href="{{ dagster_job_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View job in Dagster UI' %}" style="opacity:.5;text-decoration:none;font-size:11px;">&#x2197;</a>{% endif %}</div>
         </div>
     </div>
     <div class="form-row">
@@ -55,26 +55,26 @@
     <div class="form-row">
         <div>
             <label>{% trans 'Started:' %}</label>
-            <div class="readonly">{{ run.startTime|default:"—" }}</div>
+            <div class="readonly">{{ run.start_time|default:"—" }}</div>
         </div>
     </div>
     <div class="form-row">
         <div>
             <label>{% trans 'Ended:' %}</label>
-            <div class="readonly">{{ run.endTime|default:"—" }}</div>
+            <div class="readonly">{{ run.end_time|default:"—" }}</div>
         </div>
     </div>
     {% if run.stats %}
     <div class="form-row">
         <div>
             <label>{% trans 'Steps succeeded:' %}</label>
-            <div class="readonly">{{ run.stats.stepsSucceeded|default:"0" }}</div>
+            <div class="readonly">{{ run.stats.steps_succeeded|default:"0" }}</div>
         </div>
     </div>
     <div class="form-row">
         <div>
             <label>{% trans 'Steps failed:' %}</label>
-            <div class="readonly">{{ run.stats.stepsFailed|default:"0" }}</div>
+            <div class="readonly">{{ run.stats.steps_failed|default:"0" }}</div>
         </div>
     </div>
     <div class="form-row">
@@ -96,11 +96,11 @@
         </div>
     </div>
     {% endif %}
-    {% if run.runConfigYaml %}
+    {% if run.run_config_yaml %}
     <div class="form-row">
         <div>
             <label>{% trans 'Run config:' %}</label>
-            <div class="readonly"><pre class="dagster-config">{{ run.runConfigYaml }}</pre></div>
+            <div class="readonly"><pre class="dagster-config">{{ run.run_config_yaml }}</pre></div>
         </div>
     </div>
     {% endif %}
@@ -126,7 +126,7 @@
             <tr class="{% if event.level == 'ERROR' or event.level == 'CRITICAL' %}row-error{% endif %}">
                 <td style="white-space:nowrap;font-size:12px;">{{ event.timestamp|default:"—" }}</td>
                 <td><span class="event-level event-level-{{ event.level }}">{{ event.level }}</span></td>
-                <td style="font-size:12px;">{{ event.stepKey|default:"—" }}</td>
+                <td style="font-size:12px;">{{ event.step_key|default:"—" }}</td>
                 <td style="font-size:12px;">{{ event.event_type }}</td>
                 <td style="font-size:12px;word-break:break-word;">{{ event.message }}</td>
             </tr>
@@ -141,7 +141,7 @@
 {% if related_runs %}
 <div class="inline-related tabular">
 <fieldset class="module">
-    <h2>{% trans 'Recent Runs for' %} {{ run.jobName }}</h2>
+    <h2>{% trans 'Recent Runs for' %} {{ run.job_name }}</h2>
     <table>
         <thead>
             <tr>
@@ -156,11 +156,11 @@
         </thead>
         <tbody>
             {% for r in related_runs %}
-            <tr{% if r.runId == run.runId %} style="font-weight:bold;"{% endif %}>
-                <td><a href="{% url 'admin:django_dagster_dagsterrun_change' r.runId %}">{{ r.runId }}</a></td>
+            <tr{% if r.run_id == run.run_id %} style="font-weight:bold;"{% endif %}>
+                <td><a href="{% url 'admin:django_dagster_dagsterrun_change' r.run_id %}">{{ r.run_id }}</a></td>
                 <td><span class="status-badge status-{{ r.status }}">{{ r.status }}</span></td>
-                <td>{{ r.startTime|default:"—" }}</td>
-                <td>{{ r.endTime|default:"—" }}</td>
+                <td>{{ r.start_time|default:"—" }}</td>
+                <td>{{ r.end_time|default:"—" }}</td>
                 {% if dagster_url %}
                 <td>{% if r.dagster_ui_url %}<a href="{{ r.dagster_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}">&#x2197;</a>{% endif %}</td>
                 {% endif %}

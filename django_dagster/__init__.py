@@ -1,21 +1,15 @@
-from .client import (
-    cancel_run,
-    get_job_default_run_config,
-    get_jobs,
-    get_run,
-    get_run_events,
-    get_runs,
-    reexecute_run,
-    submit_job,
-)
+from typing import Any
 
 __all__ = [
-    "cancel_run",
-    "get_job_default_run_config",
-    "get_jobs",
-    "get_run",
-    "get_run_events",
-    "get_runs",
-    "reexecute_run",
-    "submit_job",
+    "DagsterJob",
+    "DagsterRun",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name in __all__:
+        from .models import DagsterJob, DagsterRun
+
+        _exports = {"DagsterJob": DagsterJob, "DagsterRun": DagsterRun}
+        return _exports[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

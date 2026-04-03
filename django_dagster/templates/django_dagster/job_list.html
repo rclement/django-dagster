@@ -47,7 +47,7 @@
             {% for job in jobs %}
             <tr>
                 <th scope="row">
-                    <a href="{% url 'admin:django_dagster_dagsterjob_change' job.name %}">{{ job.name }}</a>
+                    <a href="{% url 'admin:django_dagster_dagsterjob_change' job.location job.repository job.name %}">{{ job.name }}</a>
                 </th>
                 <td>{{ job.description|default:"—" }}</td>
                 {% if dagster_url %}

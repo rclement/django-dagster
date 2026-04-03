@@ -68,6 +68,48 @@ def test_get_jobs(
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_job(
+    mock_cls: MagicMock, graphql_pipeline_response: dict[str, Any]
+) -> None:
+    mock_client = MagicMock()
+    mock_client._execute.return_value = graphql_pipeline_response
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_job
+
+    job = get_job(
+        "etl_job", repository_name="my_repo", repository_location_name="my_location"
+    )
+
+    assert job == {
+        "name": "etl_job",
+        "description": "Daily ETL pipeline",
+        "repository": "my_repo",
+        "location": "my_location",
+    }
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
+def test_get_job_not_found(
+    mock_cls: MagicMock, graphql_pipeline_not_found_response: dict[str, Any]
+) -> None:
+    mock_client = MagicMock()
+    mock_client._execute.return_value = graphql_pipeline_not_found_response
+    mock_cls.return_value = mock_client
+
+    from django_dagster.client import get_job
+
+    assert (
+        get_job(
+            "nonexistent",
+            repository_name="my_repo",
+            repository_location_name="my_location",
+        )
+        is None
+    )
+
+
+@patch("django_dagster.client.DagsterGraphQLClient")
 def test_get_runs(mock_cls: MagicMock, graphql_runs_response: dict[str, Any]) -> None:
     mock_client = MagicMock()
     mock_client._execute.return_value = graphql_runs_response
@@ -80,6 +122,8 @@ def test_get_runs(mock_cls: MagicMock, graphql_runs_response: dict[str, Any]) ->
     assert len(runs) == 2
     assert runs[0]["runId"] == "abc12345-def0-1234-5678-abcdef012345"
     assert runs[0]["status"] == "SUCCESS"
+    assert runs[0]["repository"] == "my_repo"
+    assert runs[0]["location"] == "my_location"
     # Timestamps should be converted to datetime
     assert isinstance(runs[0]["startTime"], datetime)
     assert runs[0]["startTime"] == datetime(
@@ -141,6 +185,8 @@ def test_get_run(
     assert run["runId"] == "abc12345-def0-1234-5678-abcdef012345"
     assert run["jobName"] == "etl_job"
     assert run["status"] == "SUCCESS"
+    assert run["repository"] == "my_repo"
+    assert run["location"] == "my_location"
     assert run["stats"]["stepsSucceeded"] == 3
     assert run["runConfigYaml"].startswith("ops:")
     assert isinstance(run["startTime"], datetime)
@@ -376,30 +422,23 @@ def test_get_run_events_no_limit(
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_job_default_run_config(
-    mock_cls: MagicMock, graphql_repositories_response: dict[str, Any]
-) -> None:
+def test_get_job_default_run_config(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
-    # First call: get_jobs
-    # Second call: runConfigSchemaOrError
-    mock_client._execute.side_effect = [
-        graphql_repositories_response,
-        {
-            "runConfigSchemaOrError": {
-                "rootDefaultYaml": "ops:\n  my_op:\n    config:\n      param: value\n",
-            }
-        },
-    ]
+    mock_client._execute.return_value = {
+        "runConfigSchemaOrError": {
+            "rootDefaultYaml": "ops:\n  my_op:\n    config:\n      param: value\n",
+        }
+    }
     mock_cls.return_value = mock_client
 
     from django_dagster.client import get_job_default_run_config
 
-    config = get_job_default_run_config("etl_job")
+    config = get_job_default_run_config(
+        "etl_job", repository_name="my_repo", repository_location_name="my_location"
+    )
 
     assert config == {"ops": {"my_op": {"config": {"param": "value"}}}}
-    # Verify the selector was built correctly
-    schema_call = mock_client._execute.call_args_list[1]
-    variables = schema_call[0][1]
+    variables = mock_client._execute.call_args[0][1]
     assert variables["selector"] == {
         "pipelineName": "etl_job",
         "repositoryName": "my_repo",
@@ -408,53 +447,36 @@ def test_get_job_default_run_config(
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_job_default_run_config_empty(
-    mock_cls: MagicMock, graphql_repositories_response: dict[str, Any]
-) -> None:
+def test_get_job_default_run_config_empty(mock_cls: MagicMock) -> None:
     mock_client = MagicMock()
-    mock_client._execute.side_effect = [
-        graphql_repositories_response,
-        {"runConfigSchemaOrError": {"rootDefaultYaml": "{}\n"}},
-    ]
+    mock_client._execute.return_value = {
+        "runConfigSchemaOrError": {"rootDefaultYaml": "{}\n"}
+    }
     mock_cls.return_value = mock_client
 
     from django_dagster.client import get_job_default_run_config
 
-    config = get_job_default_run_config("etl_job")
+    config = get_job_default_run_config(
+        "etl_job", repository_name="my_repo", repository_location_name="my_location"
+    )
 
     assert config == {}
 
 
 @patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_job_default_run_config_no_yaml(
-    mock_cls: MagicMock, graphql_repositories_response: dict[str, Any]
-) -> None:
+def test_get_job_default_run_config_no_yaml(mock_cls: MagicMock) -> None:
     """When rootDefaultYaml is empty string, should return empty dict."""
     mock_client = MagicMock()
-    mock_client._execute.side_effect = [
-        graphql_repositories_response,
-        {"runConfigSchemaOrError": {"rootDefaultYaml": ""}},
-    ]
+    mock_client._execute.return_value = {
+        "runConfigSchemaOrError": {"rootDefaultYaml": ""}
+    }
     mock_cls.return_value = mock_client
 
     from django_dagster.client import get_job_default_run_config
 
-    config = get_job_default_run_config("etl_job")
-
-    assert config == {}
-
-
-@patch("django_dagster.client.DagsterGraphQLClient")
-def test_get_job_default_run_config_unknown_job(
-    mock_cls: MagicMock, graphql_repositories_response: dict[str, Any]
-) -> None:
-    mock_client = MagicMock()
-    mock_client._execute.return_value = graphql_repositories_response
-    mock_cls.return_value = mock_client
-
-    from django_dagster.client import get_job_default_run_config
-
-    config = get_job_default_run_config("nonexistent_job")
+    config = get_job_default_run_config(
+        "etl_job", repository_name="my_repo", repository_location_name="my_location"
+    )
 
     assert config == {}
 

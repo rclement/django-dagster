@@ -53,6 +53,46 @@ def get_jobs() -> list[dict[str, Any]]:
     return jobs
 
 
+def get_job(
+    name: str, repository_name: str, repository_location_name: str
+) -> dict[str, Any] | None:
+    """Get a single job by its full selector, or None if not found."""
+    client = get_client()
+    result = client._execute(
+        """
+        query($params: PipelineSelector!) {
+            pipelineOrError(params: $params) {
+                __typename
+                ... on Pipeline {
+                    name
+                    description
+                    repository { name location { name } }
+                }
+                ... on PipelineNotFoundError { message }
+                ... on PythonError { message }
+            }
+        }
+        """,
+        {
+            "params": {
+                "pipelineName": name,
+                "repositoryName": repository_name,
+                "repositoryLocationName": repository_location_name,
+            }
+        },
+    )
+    data = result["pipelineOrError"]
+    if data["__typename"] != "Pipeline":
+        return None
+    repo = data["repository"]
+    return {
+        "name": data["name"],
+        "description": data["description"],
+        "repository": repo["name"],
+        "location": repo["location"]["name"],
+    }
+
+
 def _parse_timestamp(ts: Any) -> datetime | None:
     """Convert a unix timestamp (float or None) to a datetime."""
     if ts is None:
@@ -64,6 +104,9 @@ def _format_run(run: dict[str, Any]) -> dict[str, Any]:
     """Convert raw GraphQL run data into a display-friendly dict."""
     run["startTime"] = _parse_timestamp(run.get("startTime"))
     run["endTime"] = _parse_timestamp(run.get("endTime"))
+    origin = run.pop("repositoryOrigin", None) or {}
+    run["repository"] = origin.get("repositoryName", "")
+    run["location"] = origin.get("repositoryLocationName", "")
     return run
 
 
@@ -99,6 +142,7 @@ def get_runs(
                         startTime
                         endTime
                         tags { key value }
+                        repositoryOrigin { repositoryName repositoryLocationName }
                     }
                 }
             }
@@ -125,6 +169,7 @@ def get_run(run_id: str) -> dict[str, Any] | None:
                     endTime
                     runConfigYaml
                     tags { key value }
+                    repositoryOrigin { repositoryName repositoryLocationName }
                     stats {
                         ... on RunStatsSnapshot {
                             stepsSucceeded
@@ -211,17 +256,15 @@ def get_run_events(
     }
 
 
-def get_job_default_run_config(job_name: str) -> dict[str, Any]:
+def get_job_default_run_config(
+    job_name: str,
+    repository_name: str,
+    repository_location_name: str,
+) -> dict[str, Any]:
     """Fetch the default run config for a job from the Dagster API.
 
     Returns a dict (possibly empty) with the default config values.
     """
-    # Find the job's repository info
-    jobs = get_jobs()
-    job = next((j for j in jobs if j["name"] == job_name), None)
-    if job is None:
-        return {}
-
     client = get_client()
     result = client._execute(
         """
@@ -236,8 +279,8 @@ def get_job_default_run_config(job_name: str) -> dict[str, Any]:
         {
             "selector": {
                 "pipelineName": job_name,
-                "repositoryName": job["repository"],
-                "repositoryLocationName": job["location"],
+                "repositoryName": repository_name,
+                "repositoryLocationName": repository_location_name,
             }
         },
     )
