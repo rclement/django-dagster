@@ -16,6 +16,10 @@ subclassed to restore custom behaviour (see README for an example).
 
 - **BREAKING**: remove custom permission system
 
+### Fixed
+
+- Ensure `django-dagster` python package is detected as typed
+
 ## [0.1.1] - 2026-04-02
 
 ### Fixed
