@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Optional `DAGSTER_UI_URL` setting for links to Dagster UI in admin templates
+
 ## [0.2.0] - 2026-04-13
 
 Permissions are now always enforced using Django's standard permission system.
