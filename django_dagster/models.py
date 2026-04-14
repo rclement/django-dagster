@@ -3,7 +3,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from django.conf import settings
 from django.db import models
+
+
+def dagster_ui_base() -> str | None:
+    ui_url: str | None = getattr(settings, "DAGSTER_UI_URL", None)
+    if ui_url:
+        return ui_url.rstrip("/")
+    dagster_url: str | None = getattr(settings, "DAGSTER_URL", None)
+    return dagster_url.rstrip("/") if dagster_url else None
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +101,8 @@ class DagsterJob(models.Model):
     description: str | None
     repository: str
     location: str
+    dagster_ui_url: str | None
+    dagster_location_ui_url: str | None
 
     @classmethod
     def _from_api(cls, data: dict[str, Any]) -> DagsterJob:
@@ -100,6 +111,15 @@ class DagsterJob(models.Model):
         instance.description = data["description"]
         instance.repository = data["repository"]
         instance.location = data["location"]
+        ui_base = dagster_ui_base()
+        instance.dagster_ui_url = (
+            f"{ui_base}/locations/{instance.repository}@{instance.location}/jobs/{instance.name}"
+            if ui_base
+            else None
+        )
+        instance.dagster_location_ui_url = (
+            f"{ui_base}/locations/{instance.location}" if ui_base else None
+        )
         return instance
 
     def submit(
@@ -157,6 +177,8 @@ class DagsterRun(models.Model):
     tags: list[dict[str, str]]
     run_config_yaml: str | None
     stats: dict[str, Any] | None
+    dagster_ui_url: str | None
+    dagster_job_ui_url: str | None
 
     @classmethod
     def _from_api(cls, data: dict[str, Any]) -> DagsterRun:
@@ -179,6 +201,15 @@ class DagsterRun(models.Model):
                 "expectations": raw_stats.get("expectations", 0),
             }
             if raw_stats
+            else None
+        )
+        ui_base = dagster_ui_base()
+        instance.dagster_ui_url = (
+            f"{ui_base}/runs/{instance.run_id}" if ui_base else None
+        )
+        instance.dagster_job_ui_url = (
+            f"{ui_base}/locations/{instance.repository}@{instance.location}/jobs/{instance.job_name}"
+            if ui_base and instance.repository and instance.location
             else None
         )
         return instance

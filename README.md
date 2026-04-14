@@ -56,6 +56,21 @@ INSTALLED_APPS = [
 DAGSTER_URL = "http://localhost:3000"
 ```
 
+### Optional: DAGSTER_UI_URL
+
+`DAGSTER_URL` is used for two purposes: API calls to the Dagster server, and generating links in the Django Admin UI. In some setups these need to differ, for example when Dagster runs locally (not exposed to the network) and is proxied through Django via a library like [`django-revproxy`](https://github.com/jazzband/django-revproxy):
+
+```python
+# Internal API endpoint (used by the Django backend for GraphQL calls)
+DAGSTER_URL = "http://127.0.0.1:3000"
+
+# Browser-accessible URL (used for links rendered in admin templates)
+# Can be an absolute URL or a relative path (e.g. a reverse-proxy mount point)
+DAGSTER_UI_URL = "/dagit"
+```
+
+When `DAGSTER_UI_URL` is set, all links rendered in the admin templates (job links, run links, navigation bar) use it as the base URL instead of `DAGSTER_URL`. When not set, `DAGSTER_URL` is used for both purposes.
+
 Then run migrations to create the permission models:
 
 ```bash

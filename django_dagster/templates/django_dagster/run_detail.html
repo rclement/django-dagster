@@ -149,7 +149,7 @@
                 <th>{% trans 'Status' %}</th>
                 <th>{% trans 'Started' %}</th>
                 <th>{% trans 'Ended' %}</th>
-                {% if dagster_url %}
+                {% if dagster_ui_url %}
                 <th>{% trans 'Dagster UI' %}</th>
                 {% endif %}
             </tr>
@@ -161,7 +161,7 @@
                 <td><span class="status-badge status-{{ r.status }}">{{ r.status }}</span></td>
                 <td>{{ r.start_time|default:"—" }}</td>
                 <td>{{ r.end_time|default:"—" }}</td>
-                {% if dagster_url %}
+                {% if dagster_ui_url %}
                 <td>{% if r.dagster_ui_url %}<a href="{{ r.dagster_ui_url }}" target="_blank" rel="noopener" title="{% trans 'View in Dagster UI' %}">&#x2197;</a>{% endif %}</td>
                 {% endif %}
             </tr>

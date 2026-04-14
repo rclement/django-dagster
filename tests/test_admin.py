@@ -7,8 +7,8 @@ from django.contrib.admin.sites import AdminSite
 from django.test import Client
 from django.urls import reverse
 
-from django_dagster.admin import DagsterJobAdmin, DagsterRunAdmin, _DagsterAdminBase
-from django_dagster.models import DagsterJob, DagsterRun
+from django_dagster.admin import DagsterJobAdmin, DagsterRunAdmin
+from django_dagster.models import DagsterJob, DagsterRun, dagster_ui_base
 
 
 # ---------------------------------------------------------------------------
@@ -67,17 +67,169 @@ def test_urls_resolve() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_dagster_job_ui_url_none() -> None:
+def test_dagster_job_ui_url_none(settings: Any) -> None:
+    settings.DAGSTER_URL = None
+    settings.DAGSTER_UI_URL = None
     job = DagsterJob._from_api(
         {"name": "etl_job", "description": "", "repository": "repo", "location": "loc"}
     )
-    result = _DagsterAdminBase._dagster_job_ui_url(None, job)
-    assert result is None
+    assert job.dagster_ui_url is None
 
 
-def test_dagster_run_ui_url_none() -> None:
-    result = _DagsterAdminBase._dagster_run_ui_url(None, "abc")
-    assert result is None
+def test_dagster_run_ui_url_none(settings: Any) -> None:
+    settings.DAGSTER_URL = None
+    settings.DAGSTER_UI_URL = None
+    run = DagsterRun._from_api(
+        {"runId": "abc", "jobName": "etl_job", "status": "SUCCESS"}
+    )
+    assert run.dagster_ui_url is None
+
+
+# ---------------------------------------------------------------------------
+# DAGSTER_UI_URL setting
+# ---------------------------------------------------------------------------
+
+
+def testdagster_ui_base_falls_back_to_dagster_url(settings: Any) -> None:
+    """Without DAGSTER_UI_URL, dagster_ui_base() returns DAGSTER_URL stripped."""
+    settings.DAGSTER_URL = "http://localhost:3000/"
+    settings.DAGSTER_UI_URL = None
+    assert dagster_ui_base() == "http://localhost:3000"
+
+
+def testdagster_ui_base_uses_dagster_ui_url_when_set(settings: Any) -> None:
+    """When DAGSTER_UI_URL is set, dagster_ui_base() returns it (stripped)."""
+    settings.DAGSTER_URL = "http://127.0.0.1:3000"
+    settings.DAGSTER_UI_URL = "/dagit/"
+    assert dagster_ui_base() == "/dagit"
+
+
+def testdagster_ui_base_none_when_no_urls(settings: Any) -> None:
+    """When neither URL is set, dagster_ui_base() returns None."""
+    settings.DAGSTER_URL = ""
+    settings.DAGSTER_UI_URL = None
+    assert dagster_ui_base() is None
+
+
+@pytest.mark.django_db
+@patch("django_dagster.client.get_jobs")
+def test_dagster_ui_url_used_in_job_list(
+    mock_get_jobs: MagicMock, staff_client: Client, settings: Any
+) -> None:
+    """When DAGSTER_UI_URL is set, job list links use it instead of DAGSTER_URL."""
+    settings.DAGSTER_UI_URL = "/dagit"
+    mock_get_jobs.return_value = [
+        {"name": "etl_job", "description": "", "repository": "repo", "location": "loc"},
+    ]
+
+    resp = staff_client.get(reverse(JOB_URLS["changelist"]))
+
+    assert resp.status_code == 200
+    content = resp.content.decode()
+    assert "/dagit/jobs" in content
+    assert "/dagit/runs" in content
+    assert "/dagit/locations" in content
+    assert "/dagit/locations/repo@loc/jobs/etl_job" in content
+    assert "http://localhost:3000/jobs" not in content
+
+
+@pytest.mark.django_db
+@patch("django_dagster.client.get_runs")
+@patch("django_dagster.client.get_job")
+def test_dagster_ui_url_used_in_job_detail(
+    mock_get_job: MagicMock,
+    mock_get_runs: MagicMock,
+    staff_client: Client,
+    settings: Any,
+) -> None:
+    """When DAGSTER_UI_URL is set, job detail links use it instead of DAGSTER_URL."""
+    settings.DAGSTER_UI_URL = "/dagit"
+    mock_get_job.return_value = {
+        "name": "etl_job",
+        "description": "",
+        "repository": "repo",
+        "location": "loc",
+    }
+    mock_get_runs.return_value = []
+
+    resp = staff_client.get(
+        reverse(JOB_URLS["change"], args=["loc", "repo", "etl_job"])
+    )
+
+    assert resp.status_code == 200
+    content = resp.content.decode()
+    assert "/dagit/locations/repo@loc/jobs/etl_job" in content
+    # Navigation links also use the UI URL
+    assert "/dagit/jobs" in content
+    assert "/dagit/runs" in content
+    # Per-entity links do not use the API URL
+    assert "http://localhost:3000/locations" not in content
+
+
+@pytest.mark.django_db
+@patch("django_dagster.client.get_jobs")
+@patch("django_dagster.client.get_runs")
+def test_dagster_ui_url_used_in_run_list(
+    mock_get_runs: MagicMock,
+    mock_get_jobs: MagicMock,
+    staff_client: Client,
+    settings: Any,
+) -> None:
+    """When DAGSTER_UI_URL is set, run list links use it instead of DAGSTER_URL."""
+    settings.DAGSTER_UI_URL = "/dagit"
+    run_id = "abc12345-def0-1234-5678-abcdef012345"
+    mock_get_jobs.return_value = []
+    mock_get_runs.return_value = [
+        {
+            "runId": run_id,
+            "jobName": "etl_job",
+            "status": "SUCCESS",
+            "startTime": None,
+            "endTime": None,
+            "tags": [],
+        },
+    ]
+
+    resp = staff_client.get(reverse(RUN_URLS["changelist"]))
+
+    assert resp.status_code == 200
+    content = resp.content.decode()
+    assert f"/dagit/runs/{run_id}" in content
+    assert f"http://localhost:3000/runs/{run_id}" not in content
+
+
+@pytest.mark.django_db
+@patch("django_dagster.client.get_runs")
+@patch("django_dagster.client.get_run")
+def test_dagster_ui_url_used_in_run_detail(
+    mock_get_run: MagicMock,
+    mock_get_runs: MagicMock,
+    staff_client: Client,
+    settings: Any,
+) -> None:
+    """When DAGSTER_UI_URL is set, run detail links use it instead of DAGSTER_URL."""
+    settings.DAGSTER_UI_URL = "/dagit"
+    run_id = "abc12345-def0-1234-5678-abcdef012345"
+    mock_get_run.return_value = {
+        "runId": run_id,
+        "jobName": "etl_job",
+        "repository": "my_repo",
+        "location": "my_location",
+        "status": "SUCCESS",
+        "startTime": None,
+        "endTime": None,
+        "runConfigYaml": None,
+        "tags": [],
+        "stats": None,
+    }
+    mock_get_runs.return_value = []
+
+    resp = staff_client.get(reverse(RUN_URLS["change"], args=[run_id]))
+
+    assert resp.status_code == 200
+    content = resp.content.decode()
+    assert f"/dagit/runs/{run_id}" in content
+    assert f"http://localhost:3000/runs/{run_id}" not in content
 
 
 # ---------------------------------------------------------------------------
