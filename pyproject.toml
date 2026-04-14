@@ -1,6 +1,6 @@
 [project]
 name = "django-dagster"
-version = "0.2.0"
+version = "0.3.0"
 description = "Django plugin for interacting with a Dagster server"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
